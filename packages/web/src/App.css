@@ -31,6 +31,33 @@
   color: #fff;
 }
 
+.nav-tenant {
+  margin-left: auto;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.nav-signout {
+  color: #7eb8da;
+}
+
+.nav-signout:hover {
+  color: #9dd4f5;
+}
+
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: #aaa;
+}
+
+.auth-disabled-reason {
+  font-size: 0.9rem;
+  color: #888;
+}
+
 .main {
   flex: 1;
   padding: 2rem;
