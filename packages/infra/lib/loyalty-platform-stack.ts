@@ -6,6 +6,7 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as cdk from 'aws-cdk-lib';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as path from 'path';
@@ -102,6 +103,12 @@ export class LoyaltyPlatformStack extends cdk.Stack {
       environment: { TABLE_NAME: this.loyaltyTable.tableName },
     });
     this.loyaltyTable.grantReadWriteData(apiHandler);
+
+    // Task 3.4: Lambda log retention for cost control and monitoring
+    new logs.LogRetention(this, 'ApiHandlerLogRetention', {
+      logGroupName: `/aws/lambda/${apiHandler.functionName}`,
+      retention: isProd ? logs.RetentionDays.THREE_MONTHS : logs.RetentionDays.ONE_MONTH,
+    });
 
     this.httpApi = new apigatewayv2.HttpApi(this, 'HttpApi', {
       apiName: `loyalty-${envName}`,
