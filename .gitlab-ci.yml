@@ -1,5 +1,5 @@
-# Loyalty Platform — CI pipeline (lint, test, CDK synth)
-# See docs/DECISIONS.md: full CI, zero production bugs goal.
+# Loyalty Platform — CI pipeline (lint, test, synth, deploy)
+# See docs/DECISIONS.md and docs/DEPLOY.md.
 
 default:
   image: node:20
@@ -9,9 +9,12 @@ stages:
   - test
   - synth
   - backend
+  - deploy
 
 variables:
   NODE_ENV: test
+  CDK_DEFAULT_ACCOUNT: $AWS_ACCOUNT_ID
+  CDK_DEFAULT_REGION: $AWS_REGION
 
 lint:api:
   stage: lint
@@ -41,6 +44,13 @@ test:api:
     - node --test test/**/*.test.js 2>/dev/null || echo "No tests yet"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test:web:
+  stage: test
+  script:
+    - cd packages/web && npm ci && npm run test -- --run
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "develop"
 
 test:integration:
   stage: test
@@ -77,4 +87,34 @@ backend:test:
     - cd packages/backend && pip install -e ".[dev]" -q
     - cd packages/backend && pytest -v
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "develop"
+
+# Deploy dev on develop. Requires CI/CD variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ACCOUNT_ID, AWS_REGION. Runner needs Docker for Lambda images.
+deploy:dev:
+  stage: deploy
+  image: node:20
+  before_script:
+    - cd packages/web && npm ci && npm run build
+    - cd ../infra && npm ci
+    - npx cdk bootstrap 2>/dev/null || true
+  script:
+    - npx cdk deploy -c environment=dev --require-approval never
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+  environment:
+    name: dev
+
+# Deploy prod on tag (e.g. v1.0.0). Same CI/CD variables and Docker requirement.
+deploy:prod:
+  stage: deploy
+  image: node:20
+  before_script:
+    - cd packages/web && npm ci && npm run build
+    - cd ../infra && npm ci
+    - npx cdk bootstrap 2>/dev/null || true
+  script:
+    - npx cdk deploy -c environment=prod --require-approval never
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  environment:
+    name: production

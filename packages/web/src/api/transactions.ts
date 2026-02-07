@@ -12,6 +12,35 @@ export interface EarnBurnResponse {
   points: number
 }
 
+export interface TransactionItem {
+  transactionId: string
+  type: string
+  memberId: string
+  points: number
+  rewardId?: string | null
+  createdAt: string
+}
+
+export interface TransactionListResponse {
+  transactions: TransactionItem[]
+  nextToken?: string | null
+}
+
+export function listTransactions(
+  tenantId: string,
+  programId: string,
+  options?: { memberId?: string; limit?: number; nextToken?: string },
+  idToken?: string | null
+): Promise<TransactionListResponse> {
+  const params = new URLSearchParams()
+  if (options?.memberId) params.set('memberId', options.memberId)
+  if (options?.limit != null) params.set('limit', String(options.limit))
+  if (options?.nextToken) params.set('nextToken', options.nextToken)
+  const qs = params.toString()
+  const path = `/api/v1/programs/${encodeURIComponent(programId)}/transactions${qs ? `?${qs}` : ''}`
+  return apiGet<TransactionListResponse>(path, tenantId, idToken)
+}
+
 export function getBalance(
   tenantId: string,
   programId: string,

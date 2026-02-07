@@ -5,7 +5,7 @@ import json
 import os
 import urllib.request
 from app.db import get_table, key
-from app.config import settings
+from app.secrets import get_razorpay_key_id, get_razorpay_key_secret
 
 
 def _table():
@@ -41,10 +41,10 @@ def create_subscription_link(tenant_id: str, plan_key: str, email: str | None = 
     plan_id = get_razorpay_plan_id(plan_key)
     if not plan_id:
         raise ValueError("Invalid or missing planKey (starter|growth|scale)")
-    key_id = settings.razorpay_key_id or os.environ.get("RAZORPAY_KEY_ID")
-    key_secret = settings.razorpay_key_secret or os.environ.get("RAZORPAY_KEY_SECRET")
+    key_id = get_razorpay_key_id()
+    key_secret = get_razorpay_key_secret()
     if not key_id or not key_secret:
-        raise RuntimeError("Razorpay keys not configured")
+        raise RuntimeError("Razorpay keys not configured (set SSM params or RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET)")
     auth = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
     body = {"plan_id": plan_id, "total_count": 12, "quantity": 1, "notes": {"tenant_id": tenant_id}, "customer_notify": 1}
     req = urllib.request.Request(

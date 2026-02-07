@@ -14,6 +14,7 @@ const Transactions = lazy(() =>
 const Rewards = lazy(() => import("@/pages/Rewards").then((m) => ({ default: m.Rewards })));
 const Billing = lazy(() => import("@/pages/Billing").then((m) => ({ default: m.Billing })));
 const Contact = lazy(() => import("@/pages/Contact").then((m) => ({ default: m.Contact })));
+const Settings = lazy(() => import("@/pages/Settings").then((m) => ({ default: m.Settings })));
 
 function RouteFallback() {
   return (
@@ -89,6 +90,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<RouteFallback />}>
             <Contact />
+          </Suspense>
+        ),
+      },
+      {
+        path: "settings",
+        element: (
+          <Suspense fallback={<RouteFallback />}>
+            <Settings />
           </Suspense>
         ),
       },

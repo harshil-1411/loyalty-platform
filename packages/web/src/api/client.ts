@@ -52,6 +52,20 @@ export async function apiPut<T>(path: string, tenantId: string, body: unknown, i
   return res.json()
 }
 
+export async function apiPatch<T>(path: string, tenantId: string, body: unknown, idToken?: string | null): Promise<T> {
+  const url = `${baseUrl()}${path.startsWith('/') ? path : `/${path}`}`
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: getApiHeaders(tenantId, idToken),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error?.message || err.error || res.statusText)
+  }
+  return res.json()
+}
+
 export async function apiDelete(path: string, tenantId: string, idToken?: string | null): Promise<void> {
   const url = `${baseUrl()}${path.startsWith('/') ? path : `/${path}`}`
   const res = await fetch(url, {

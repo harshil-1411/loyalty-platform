@@ -5,7 +5,7 @@ import hmac
 import json
 import time
 from app.db import get_table, key
-from app.config import settings
+from app.secrets import get_razorpay_webhook_secret
 
 
 def _table():
@@ -53,9 +53,9 @@ def update_tenant_billing(
 
 
 def handle_webhook(raw_body: str, signature: str | None) -> tuple[int, dict]:
-    secret = settings.razorpay_webhook_secret or ""
-    if not secret:
-        return 500, {"error": "Webhook not configured"}
+    secret = get_razorpay_webhook_secret()
+    if not secret or secret == "REPLACE_ME":
+        return 500, {"error": "Webhook not configured (set SSM param or RAZORPAY_WEBHOOK_SECRET)"}
     if not signature or not verify_signature(raw_body, signature, secret):
         return 400, {"error": "Invalid signature"}
     try:

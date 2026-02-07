@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as client from "./client";
-import { getBalance, earn, burn } from "./transactions";
+import { getBalance, earn, burn, listTransactions } from "./transactions";
 
 vi.mock("./client");
 
@@ -70,5 +70,20 @@ describe("Transactions API", () => {
       idToken
     );
     expect(res.balance).toBe(90);
+  });
+
+  it("listTransactions calls apiGet with path and optional query params", async () => {
+    vi.mocked(client.apiGet).mockResolvedValue({
+      transactions: [{ transactionId: "t1", type: "earn", memberId: "m1", points: 10, createdAt: "2025-02-07T12:00:00Z" }],
+      nextToken: null,
+    });
+    const res = await listTransactions(tenantId, programId, { memberId: "m1", limit: 50 }, idToken);
+    expect(client.apiGet).toHaveBeenCalledWith(
+      "/api/v1/programs/prog-1/transactions?memberId=m1&limit=50",
+      tenantId,
+      idToken
+    );
+    expect(res.transactions).toHaveLength(1);
+    expect(res.transactions[0].type).toBe("earn");
   });
 });

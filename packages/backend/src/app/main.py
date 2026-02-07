@@ -23,7 +23,7 @@ from app.exceptions import (
     ConflictError,
 )
 from app.logging_config import configure_logging
-from app.routers import hello, programs, transactions, rewards, billing, webhooks
+from app.routers import hello, programs, transactions, rewards, billing, webhooks, me
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -44,11 +44,31 @@ def _error_response(status_code: int, code: str, message: str, request_id: str |
     return JSONResponse(status_code=status_code, content=body.model_dump())
 
 
+async def _set_tenant_from_authorizer(request: Request, call_next):
+    """When behind API Gateway Lambda authorizer, set request.state.tenant_id from authorizer context."""
+    event = request.scope.get("aws.event")
+    if event:
+        try:
+            authorizer = (event.get("requestContext") or {}).get("authorizer") or {}
+            # HTTP API Lambda authorizer context: tenantId may be top-level or under .lambda
+            tenant = authorizer.get("tenantId") or authorizer.get("tenant_id")
+            if not tenant and isinstance(authorizer.get("lambda"), dict):
+                tenant = authorizer["lambda"].get("tenantId") or authorizer["lambda"].get("tenant_id")
+            if tenant:
+                request.state.tenant_id = tenant if isinstance(tenant, str) else str(tenant)
+            user_sub = authorizer.get("sub") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("sub"))
+            if user_sub:
+                request.state.user_sub = user_sub if isinstance(user_sub, str) else str(user_sub)
+        except Exception:  # noqa: BLE001
+            pass
+    return await call_next(request)
+
+
 async def add_request_id(request: Request, call_next):
     request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
     request.state.request_id = request_id
     start = time.perf_counter()
-    response = await call_next(request)
+    response = await _set_tenant_from_authorizer(request, call_next)
     duration_ms = (time.perf_counter() - start) * 1000
     logger.info(
         "request_finished",
@@ -157,6 +177,7 @@ app.include_router(transactions.router, prefix=settings.api_base_path)
 app.include_router(rewards.router, prefix=settings.api_base_path)
 app.include_router(billing.router, prefix=settings.api_base_path)
 app.include_router(webhooks.router, prefix=settings.api_base_path)
+app.include_router(me.router, prefix=settings.api_base_path)
 
 
 def get_mangum_handler():

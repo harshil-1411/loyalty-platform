@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     razorpay_webhook_secret: str = ""
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
+    cognito_user_pool_id: str = ""
 
     def get_cors_origins_list(self) -> list[str]:
         if not self.cors_origins or self.cors_origins == "*":

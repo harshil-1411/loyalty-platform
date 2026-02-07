@@ -6,6 +6,7 @@ export default {
   'nav.rewards': 'इनाम',
   'nav.billing': 'बिलिंग',
   'nav.contact': 'संपर्क',
+  'nav.settings': 'सेटिंग्स',
   'nav.signOut': 'साइन आउट',
   'dashboard.title': 'डैशबोर्ड',
   'dashboard.tenantContext': 'टेनेंट संदर्भ',

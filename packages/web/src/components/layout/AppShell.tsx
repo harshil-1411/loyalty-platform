@@ -7,6 +7,7 @@ import {
   Award,
   CreditCard,
   MessageCircle,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -35,6 +36,7 @@ const navItems = [
   { path: "/rewards", label: t("nav.rewards"), icon: Award },
   { path: "/billing", label: t("nav.billing"), icon: CreditCard },
   { path: "/contact", label: t("nav.contact"), icon: MessageCircle },
+  { path: "/settings", label: t("nav.settings"), icon: Settings },
 ] as const;
 
 export function AppShell() {
