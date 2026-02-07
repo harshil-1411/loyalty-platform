@@ -28,4 +28,18 @@ export default {
   'locale.aria': 'Language',
   'locale.en': 'English',
   'locale.hi': 'हिंदी',
+
+  /* Super-admin navigation & pages */
+  'admin.nav.overview': 'Platform Overview',
+  'admin.nav.tenants': 'Tenants',
+  'admin.nav.plans': 'Pricing Plans',
+  'admin.nav.billing': 'Billing',
+  'admin.nav.users': 'Users',
+  'admin.role.label': 'Super Admin',
+  'admin.overview.title': 'Platform Overview',
+  'admin.overview.subtitle': 'Holistic view of all tenants, subscriptions, and platform health.',
+  'admin.tenants.title': 'Tenants',
+  'admin.plans.title': 'Pricing Plans',
+  'admin.billing.title': 'Billing Overview',
+  'admin.users.title': 'User Management',
 } as Record<string, string>;

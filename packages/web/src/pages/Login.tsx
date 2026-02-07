@@ -23,7 +23,8 @@ export function Login() {
   const [loading, setLoading] = useState(false);
 
   if (state.status === "authenticated") {
-    navigate("/", { replace: true });
+    const dest = state.user.role === "super_admin" ? "/admin" : "/";
+    navigate(dest, { replace: true });
     return null;
   }
 
@@ -33,6 +34,7 @@ export function Login() {
     setLoading(true);
     try {
       await signIn(username.trim(), password);
+      // After signIn, state refreshes and the redirect above will fire
       navigate("/", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");

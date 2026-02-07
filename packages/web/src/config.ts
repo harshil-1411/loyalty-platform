@@ -9,6 +9,10 @@ export const config = {
   api: {
     baseUrl: (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, ''),
   },
+  superAdmin: {
+    /** When true, bypasses Cognito and uses a mock super-admin user. Dev only. */
+    devMode: import.meta.env.VITE_SUPER_ADMIN_MODE === 'true',
+  },
 } as const
 
 export function isAuthConfigured(): boolean {

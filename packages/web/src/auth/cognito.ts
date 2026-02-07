@@ -22,21 +22,27 @@ function getPool(): CognitoUserPool {
   return userPool
 }
 
+export type UserRole = 'tenant_admin' | 'super_admin'
+
 export interface AuthUser {
   username: string
   email?: string
   sub: string
   /** From Cognito custom attribute; used as tenant for API calls. */
   custom_tenant_id?: string
+  /** Derived from cognito:groups or dev override. */
+  role: UserRole
 }
 
 function parseIdTokenPayload(idToken: string): AuthUser {
   const payload = JSON.parse(atob(idToken.split('.')[1]))
+  const groups: string[] = payload['cognito:groups'] ?? []
   return {
     username: payload['cognito:username'] ?? payload.sub,
     email: payload.email,
     sub: payload.sub,
     custom_tenant_id: payload['custom:tenant_id'],
+    role: groups.includes('super_admin') ? 'super_admin' : 'tenant_admin',
   }
 }
 

@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { AuthUser } from './cognito'
-import { isAuthConfigured } from '../config'
+import { config, isAuthConfigured } from '../config'
 import {
   getSessionUser,
   signIn as cognitoSignIn,
@@ -15,6 +15,14 @@ import {
   signUp as cognitoSignUp,
   confirmSignUp as cognitoConfirmSignUp,
 } from './cognito'
+
+/** Mock super-admin identity used when VITE_SUPER_ADMIN_MODE=true */
+const MOCK_SUPER_ADMIN: AuthUser = {
+  username: 'superadmin',
+  email: 'admin@loyaltyplatform.dev',
+  sub: 'sa-00000000-0000-0000-0000-000000000000',
+  role: 'super_admin',
+}
 
 type AuthState =
   | { status: 'loading' }
@@ -37,6 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' })
 
   const refresh = useCallback(async () => {
+    // Dev super-admin bypass — skip Cognito entirely
+    if (config.superAdmin.devMode) {
+      setState({ status: 'authenticated', user: MOCK_SUPER_ADMIN })
+      return
+    }
     if (!isAuthConfigured()) {
       setState({ status: 'disabled', reason: 'Auth not configured' })
       return

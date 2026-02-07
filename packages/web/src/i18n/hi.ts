@@ -28,4 +28,18 @@ export default {
   'locale.aria': 'भाषा',
   'locale.en': 'English',
   'locale.hi': 'हिंदी',
+
+  /* सुपर-एडमिन नेविगेशन और पेज */
+  'admin.nav.overview': 'प्लेटफॉर्म अवलोकन',
+  'admin.nav.tenants': 'टेनेंट',
+  'admin.nav.plans': 'मूल्य योजनाएं',
+  'admin.nav.billing': 'बिलिंग',
+  'admin.nav.users': 'उपयोगकर्ता',
+  'admin.role.label': 'सुपर एडमिन',
+  'admin.overview.title': 'प्लेटफॉर्म अवलोकन',
+  'admin.overview.subtitle': 'सभी टेनेंट, सब्सक्रिप्शन और प्लेटफॉर्म स्वास्थ्य का समग्र दृश्य।',
+  'admin.tenants.title': 'टेनेंट',
+  'admin.plans.title': 'मूल्य योजनाएं',
+  'admin.billing.title': 'बिलिंग अवलोकन',
+  'admin.users.title': 'उपयोगकर्ता प्रबंधन',
 } as Record<string, string>;
