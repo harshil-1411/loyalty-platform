@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/useAuth";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import {
@@ -27,47 +26,67 @@ import {
   Receipt,
   Gift,
   TrendingUp,
-  PieChart as PieChartIcon,
+  BarChart3,
+  ArrowUpRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import "./PremiumDashboard.css";
-
-type DetailedViewWidget = "points" | "programs" | "transactions" | "rewards" | null;
 
 export function PremiumDashboard() {
   const { state } = useAuth();
-  const location = useLocation();
-  const [detailedView, setDetailedView] = useState<DetailedViewWidget>(null);
-
   const tenantId = state.status === "authenticated" ? state.user.sub : "";
-  const { data, loading, error } = useDashboardMetrics(tenantId);
+  const { data, loading, error, refetch } = useDashboardMetrics(tenantId);
 
   if (state.status !== "authenticated") return null;
 
+  /* ── Loading skeleton ── */
   if (loading) {
     return (
-      <div className="premium-dashboard" role="status" aria-live="polite" aria-busy="true">
-        <Skeleton className="mb-6 h-9 w-56" />
-        <div className="premium-dashboard-metrics">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        aria-label="Loading dashboard"
+      >
+        <p className="sr-only">Loading dashboard…</p>
+        <Skeleton className="mb-1 h-8 w-40" />
+        <Skeleton className="mb-8 h-4 w-64" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+            <Skeleton key={i} className="h-[136px] rounded-lg" />
           ))}
         </div>
-        <Skeleton className="mb-3 mt-8 h-6 w-40" />
-        <div className="premium-dashboard-charts-grid">
-          <Skeleton className="h-64 w-full rounded-xl" />
-          <Skeleton className="h-64 w-full rounded-xl" />
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-[320px] rounded-lg" />
+          <Skeleton className="h-[320px] rounded-lg" />
         </div>
       </div>
     );
   }
 
+  /* ── Error state ── */
   if (error) {
     return (
-      <div className="premium-dashboard premium-dashboard-error">
-        <p role="alert" className="text-destructive">
-          {error}
-        </p>
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
+        <div
+          className="mt-6 rounded-lg border border-border bg-card p-6"
+          role="alert"
+          aria-live="assertive"
+        >
+          <p className="font-medium text-foreground">
+            We couldn't load your dashboard.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => void refetch()}
+            aria-label="Try again"
+          >
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }
@@ -76,141 +95,130 @@ export function PremiumDashboard() {
 
   const { metrics, charts } = data;
 
-  const quickLinks = [
-    { to: "/programs", label: "Programs" },
-    { to: "/transactions", label: "Transactions" },
-    { to: "/rewards", label: "Rewards" },
-    { to: "/billing", label: "Billing" },
-  ];
-
   const tooltipStyle = {
     backgroundColor: "hsl(var(--card))",
     border: "1px solid hsl(var(--border))",
     borderRadius: "var(--radius)",
     padding: "0.5rem 0.75rem",
-    fontSize: "0.875rem",
+    fontSize: "0.8125rem",
+    boxShadow: "0 4px 12px rgb(0 0 0 / 0.08)",
   };
 
+  const metricCards = [
+    {
+      title: "Total points",
+      value: metrics.totalPoints.toLocaleString(),
+      icon: Coins,
+      to: "/transactions",
+      linkLabel: "View transactions",
+      change: "+12%",
+    },
+    {
+      title: "Active programs",
+      value: String(metrics.activePrograms),
+      icon: LayoutGrid,
+      to: "/programs",
+      linkLabel: "Manage programs",
+    },
+    {
+      title: "Transactions",
+      value: metrics.transactionsCount.toLocaleString(),
+      icon: Receipt,
+      to: "/transactions",
+      linkLabel: "View history",
+      change: "+8%",
+    },
+    {
+      title: "Rewards redeemed",
+      value: String(metrics.rewardsRedeemed),
+      icon: Gift,
+      to: "/rewards",
+      linkLabel: "View rewards",
+    },
+  ];
+
   return (
-    <div className="premium-dashboard" aria-labelledby="premium-dashboard-heading">
-      <h2
-        id="premium-dashboard-heading"
-        className="text-2xl font-semibold tracking-tight text-foreground"
+    <div aria-labelledby="dashboard-heading">
+      {/* Page header */}
+      <div className="mb-8">
+        <h1
+          id="dashboard-heading"
+          className="text-xl font-semibold tracking-tight text-foreground"
+        >
+          Dashboard
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your loyalty programs at a glance.
+        </p>
+      </div>
+
+      {/* ── Metric cards ── */}
+      <section
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        aria-label="Key metrics"
       >
-        Dashboard
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Overview of your loyalty programs and activity
-      </p>
-
-      <nav className="premium-dashboard-quicklinks" aria-label="Quick links">
-        {quickLinks.map(({ to, label }) => (
-          <Link
-            key={to}
-            to={to}
-            className={cn(
-              "premium-dashboard-link rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-              location.pathname === to
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/60 text-foreground hover:bg-muted"
-            )}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
-
-      <section aria-label="Key metrics" className="premium-dashboard-metrics">
-        {[
-          {
-            key: "points" as const,
-            title: "Total Points",
-            value: metrics.totalPoints.toLocaleString(),
-            icon: Coins,
-            accent: "chart-1",
-          },
-          {
-            key: "programs" as const,
-            title: "Active Programs",
-            value: String(metrics.activePrograms),
-            icon: LayoutGrid,
-            accent: "chart-2",
-          },
-          {
-            key: "transactions" as const,
-            title: "Transactions",
-            value: metrics.transactionsCount.toLocaleString(),
-            icon: Receipt,
-            accent: "chart-3",
-          },
-          {
-            key: "rewards" as const,
-            title: "Rewards Redeemed",
-            value: String(metrics.rewardsRedeemed),
-            icon: Gift,
-            accent: "chart-4",
-          },
-        ].map(({ key, title, value, icon: Icon, accent }) => (
-          <Card
-            key={key}
-            className={cn(
-              "premium-dashboard-widget overflow-hidden transition-shadow hover:shadow-md",
-              "border-l-4 border-l-primary"
-            )}
-            role="button"
-            tabIndex={0}
-            onClick={() => setDetailedView((v) => (v === key ? null : key))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setDetailedView((v) => (v === key ? null : key));
-              }
-            }}
-            aria-label={`${title}: ${value}. Click for details.`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+        {metricCards.map(({ title, value, icon: Icon, to, linkLabel, change }) => (
+          <Card key={title} className="relative">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {title}
               </CardTitle>
-              <span className="rounded-md bg-muted/80 p-2" aria-hidden>
-                <Icon className="h-5 w-5 text-foreground" />
-              </span>
+              <div className="rounded-md bg-primary/10 p-2" aria-hidden>
+                <Icon className="h-4 w-4 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold tracking-tight text-foreground">
-                {value}
-              </p>
+              <div className="flex items-baseline gap-2">
+                <p
+                  className="text-2xl font-semibold tabular-nums tracking-tight text-foreground"
+                  aria-label={`${title}: ${value}`}
+                >
+                  {value}
+                </p>
+                {change && (
+                  <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    {change}
+                  </span>
+                )}
+              </div>
+              <Link
+                to={to}
+                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+              >
+                {linkLabel}
+                <ArrowUpRight className="h-3 w-3" aria-hidden />
+              </Link>
             </CardContent>
           </Card>
         ))}
       </section>
 
-      <section
-        className="premium-dashboard-charts"
-        aria-labelledby="visual-breakdown-heading"
-      >
-        <h3
-          id="visual-breakdown-heading"
-          className="mb-4 text-lg font-semibold text-foreground"
+      {/* ── Charts ── */}
+      <section className="mt-8" aria-labelledby="charts-heading">
+        <h2
+          id="charts-heading"
+          className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground"
         >
-          Visual breakdown
-        </h3>
-        <div className="premium-dashboard-charts-grid">
-          <Card className="border-border shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-2 pb-2">
-              <PieChartIcon className="h-5 w-5 text-muted-foreground" aria-hidden />
-              <CardTitle className="text-base">Points by program</CardTitle>
+          Breakdown
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" aria-hidden />
+                Points by program
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div
-                className="h-64 w-full"
+                className="h-64 min-h-[200px] w-full"
                 role="img"
                 aria-label="Points by program"
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={charts.pointsByProgram}
-                    margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                    margin={{ top: 4, right: 4, left: -12, bottom: 0 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -219,20 +227,20 @@ export function PremiumDashboard() {
                     />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--border))" }}
-                      tickLine={{ stroke: "hsl(var(--border))" }}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis
-                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--border))" }}
-                      tickLine={{ stroke: "hsl(var(--border))" }}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
                       tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : String(v))}
                     />
                     <Tooltip
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [value.toLocaleString(), "Points"]}
-                      labelStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 500 }}
                     />
                     <Bar
                       dataKey="value"
@@ -246,21 +254,23 @@ export function PremiumDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-border shadow-sm">
-            <CardHeader className="flex flex-row items-center gap-2 pb-2">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" aria-hidden />
-              <CardTitle className="text-base">Transactions over time</CardTitle>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <TrendingUp className="h-4 w-4 text-muted-foreground" aria-hidden />
+                Transactions this week
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div
-                className="h-64 w-full"
+                className="h-64 min-h-[200px] w-full"
                 role="img"
-                aria-label="Transactions over time"
+                aria-label="Transactions this week"
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={charts.transactionsOverTime}
-                    margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                    margin={{ top: 4, right: 4, left: -12, bottom: 0 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -269,26 +279,26 @@ export function PremiumDashboard() {
                     />
                     <XAxis
                       dataKey="name"
-                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--border))" }}
-                      tickLine={{ stroke: "hsl(var(--border))" }}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <YAxis
-                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                      axisLine={{ stroke: "hsl(var(--border))" }}
-                      tickLine={{ stroke: "hsl(var(--border))" }}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
                     />
                     <Tooltip
                       contentStyle={tooltipStyle}
                       formatter={(value: number) => [value, "Transactions"]}
-                      labelStyle={{ color: "hsl(var(--foreground))" }}
+                      labelStyle={{ color: "hsl(var(--foreground))", fontWeight: 500 }}
                     />
                     <Line
                       type="monotone"
                       dataKey="value"
                       stroke="hsl(var(--chart-2))"
                       strokeWidth={2}
-                      dot={{ fill: "hsl(var(--chart-2))", strokeWidth: 0 }}
+                      dot={{ fill: "hsl(var(--chart-2))", strokeWidth: 0, r: 3 }}
                       activeDot={{ r: 4, fill: "hsl(var(--chart-2))" }}
                       name="Transactions"
                     />
@@ -299,39 +309,6 @@ export function PremiumDashboard() {
           </Card>
         </div>
       </section>
-
-      {detailedView && (
-        <section
-          className="premium-dashboard-detailed-view"
-          aria-labelledby="detailed-view-heading"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Detailed view"
-        >
-          <h3 id="detailed-view-heading" className="text-base font-semibold">
-            Detailed view
-          </h3>
-          <p data-testid="detailed-view-widget" className="mt-2 text-muted-foreground">
-            {detailedView === "points" &&
-              `Total Points: ${metrics.totalPoints.toLocaleString()}`}
-            {detailedView === "programs" &&
-              `Active Programs: ${metrics.activePrograms}`}
-            {detailedView === "transactions" &&
-              `Transactions: ${metrics.transactionsCount.toLocaleString()}`}
-            {detailedView === "rewards" &&
-              `Rewards Redeemed: ${metrics.rewardsRedeemed}`}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4"
-            onClick={() => setDetailedView(null)}
-            aria-label="Close detailed view"
-          >
-            Close
-          </Button>
-        </section>
-      )}
     </div>
   );
 }
