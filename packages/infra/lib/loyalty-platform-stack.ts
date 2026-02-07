@@ -141,5 +141,23 @@ export class LoyaltyPlatformStack extends cdk.Stack {
       ],
     });
     this.distribution.node.addDependency(webOrigin);
+
+    // Outputs for frontend config (e.g. .env or build-time env)
+    new cdk.CfnOutput(this, 'UserPoolId', {
+      value: this.userPool.userPoolId,
+      description: 'Cognito User Pool ID for web app (VITE_COGNITO_USER_POOL_ID)',
+    });
+    new cdk.CfnOutput(this, 'UserPoolClientId', {
+      value: this.userPoolClient.userPoolClientId,
+      description: 'Cognito App Client ID for web app (VITE_COGNITO_CLIENT_ID)',
+    });
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value: this.httpApi.apiEndpoint,
+      description: 'API base URL for web app (VITE_API_URL)',
+    });
+    new cdk.CfnOutput(this, 'WebUrl', {
+      value: `https://${this.distribution.distributionDomainName}`,
+      description: 'CloudFront URL for web app',
+    });
   }
 }
