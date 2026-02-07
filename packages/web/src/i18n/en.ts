@@ -20,4 +20,11 @@ export default {
   'billing.scale': 'Scale',
   'billing.subscribe': 'Subscribe',
   'billing.manageSubscription': 'Manage subscription',
+  'theme.aria': 'Theme',
+  'theme.light': 'Light',
+  'theme.dark': 'Dark',
+  'theme.system': 'System',
+  'locale.aria': 'Language',
+  'locale.en': 'English',
+  'locale.hi': 'हिंदी',
 } as Record<string, string>;

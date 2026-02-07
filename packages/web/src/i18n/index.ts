@@ -1,19 +1,35 @@
 /**
- * Task 4.5: i18n provision — message keys and locale structure. English first; Hindi can be added later.
+ * Task 4.5: i18n provision — message keys and locale structure. English and Hindi.
  */
 import en from './en';
+import hi from './hi';
 
-export type Locale = 'en';
-const messages: Record<Locale, Record<string, string>> = { en };
+const LOCALE_KEY = 'lp-locale';
 
-let currentLocale: Locale = 'en';
+export type Locale = 'en' | 'hi';
+const messages: Record<Locale, Record<string, string>> = { en, hi };
+
+function getStoredLocale(): Locale {
+  if (typeof window === 'undefined') return 'en';
+  const v = localStorage.getItem(LOCALE_KEY);
+  if (v === 'en' || v === 'hi') return v;
+  return 'en';
+}
+
+let currentLocale: Locale = getStoredLocale();
 
 export function setLocale(locale: Locale): void {
   currentLocale = locale;
+  if (typeof window !== 'undefined') localStorage.setItem(LOCALE_KEY, locale);
 }
 
 export function getLocale(): Locale {
   return currentLocale;
+}
+
+/** Call once at app init to sync in-memory locale with stored value. */
+export function initLocale(): void {
+  currentLocale = getStoredLocale();
 }
 
 export function t(key: string): string {

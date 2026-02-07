@@ -1,0 +1,1 @@
+"""Loyalty Platform API application."""

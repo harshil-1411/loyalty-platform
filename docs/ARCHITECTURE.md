@@ -6,7 +6,7 @@ This document defines the chosen stack and high-level architecture for the Loyal
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
-| **Backend** | AWS Lambda + API Gateway (HTTP API) | Serverless, pay-per-request; CDK-managed. |
+| **Backend** | Python FastAPI (AWS Lambda via Mangum) + API Gateway (HTTP API) | Single backend serves /api/v1; serverless, pay-per-request; CDK-managed. |
 | **Database** | Amazon DynamoDB | Serverless, tenant partition keys; single-table design for cost and scale. |
 | **Auth** | Amazon Cognito | User pools for Program Admin and End-user; JWT for API auth. |
 | **Payments** | Razorpay (India) | Subscriptions for platform billing; optional Payments for merchant-facing charges later. |
@@ -93,13 +93,14 @@ For the full set of diagrams (flows, AWS infrastructure, data model, deployment)
 
 ```
 packages/
-  api/          # Lambda handlers and shared logic (e.g. Node.js/TypeScript)
+  backend/      # Python FastAPI API (Lambda via Mangum); serves /api/v1
+  api/          # (Legacy) Node.js Lambda — replaced by backend for /api/v1
   web/          # React (Vite) frontend
   infra/        # CDK stacks (API Gateway, Lambda, DynamoDB, Cognito, S3, CloudFront)
-docs/           # PRD, ARCHITECTURE, AGENT_RUNBOOK
+docs/           # PRD, ARCHITECTURE, AGENT_RUNBOOK, openapi.yaml
 ```
 
-CDK in `packages/infra` references the `api` and `web` packages for deployment (e.g. bundling Lambda code, uploading build artifacts to S3).
+CDK in `packages/infra` references the `backend` (Python Lambda container) and `web` packages for deployment. OpenAPI spec is exported to `docs/openapi.yaml` for MCP and CodePlugins.
 
 ## Cost
 

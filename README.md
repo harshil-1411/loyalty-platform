@@ -10,6 +10,8 @@ SaaS serverless application on AWS for businesses to run loyalty programs (point
 
 ## Getting started
 
+- **Backend (Python FastAPI):** [packages/backend/README.md](packages/backend/README.md) — install, env vars, run locally, tests. OpenAPI spec: [docs/openapi.yaml](docs/openapi.yaml) (for MCP and CodePlugins).
+- **Backend tasks:** [BACKEND_TASKS.md](BACKEND_TASKS.md)
 - **Infrastructure:** `cd packages/infra && npm install && npx cdk synth`
 - **Git workflow:** See [.cursor/rules/git-branching-model.mdc](.cursor/rules/git-branching-model.mdc) (git-flow).
 - **GitLab:** [GITLAB_SETUP.md](GITLAB_SETUP.md)

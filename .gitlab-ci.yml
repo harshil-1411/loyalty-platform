@@ -8,6 +8,7 @@ stages:
   - lint
   - test
   - synth
+  - backend
 
 variables:
   NODE_ENV: test
@@ -59,3 +60,21 @@ synth:
     - cd packages/infra && npm ci && npx cdk synth -q
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "develop"
+
+backend:lint:
+  stage: backend
+  image: python:3.11
+  script:
+    - cd packages/backend && pip install -e ".[dev]" -q
+    - cd packages/backend && ruff check src tests && black --check src tests
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+backend:test:
+  stage: backend
+  image: python:3.11
+  script:
+    - cd packages/backend && pip install -e ".[dev]" -q
+    - cd packages/backend && pytest -v
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

@@ -94,13 +94,22 @@ export class LoyaltyPlatformStack extends cdk.Stack {
     cdk.Tags.of(this.userPool).add('Project', 'LoyaltyPlatform');
     cdk.Tags.of(this.userPool).add('Environment', envName);
 
-    // Task 1.3 + 1.4: API Lambda (hello + programs CRUD); route all /api/v1/* to it
-    const apiDir = path.join(__dirname, '../../api');
-    const apiHandler = new lambda.Function(this, 'ApiHandler', {
-      code: lambda.Code.fromAsset(apiDir, { exclude: ['node_modules', '*.ts', 'test'] }),
-      handler: 'dist/handlers/router.handler',
-      runtime: lambda.Runtime.NODEJS_20_X,
-      environment: { TABLE_NAME: this.loyaltyTable.tableName },
+    // Backend: Python FastAPI (Mangum) — single API for /api/v1/*
+    const backendDir = path.join(__dirname, '../../backend');
+    const apiHandler = new lambda.DockerImageFunction(this, 'ApiHandler', {
+      code: lambda.DockerImageCode.fromImageAsset(backendDir, {
+        file: 'Dockerfile',
+        exclude: ['tests', 'scripts', '.venv', '__pycache__', '*.pyc', '.pytest_cache'],
+      }),
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 512,
+      environment: {
+        TABLE_NAME: this.loyaltyTable.tableName,
+        CORS_ORIGINS: '*',
+        LOG_LEVEL: isProd ? 'INFO' : 'DEBUG',
+        RATE_LIMIT_REQUESTS: '100',
+        RATE_LIMIT_WINDOW_SEC: '60',
+      },
     });
     this.loyaltyTable.grantReadWriteData(apiHandler);
 

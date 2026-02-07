@@ -10,3 +10,9 @@ cdk.out
 # AWS IAM access key exports (never commit)
 *_accessKeys.csv
 *accessKeys*.csv
+
+# Test and build artifacts
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo

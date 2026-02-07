@@ -38,8 +38,11 @@ Build the Loyalty Management Platform per [docs/PRD.md](PRD.md) and [docs/ARCHIT
 ## Testing
 
 - Run unit tests per package (e.g. `npm run test` in `packages/api`, `packages/web`).
+- Web E2E: `npm run test:e2e` in `packages/web` (Playwright). Uses `reuseExistingServer: true`; start dev server first or let Playwright start it. Auth-dependent flow tests are skipped unless `E2E_AUTH=1`.
 - Run lint (e.g. `npm run lint`) before pushing.
 - Ensure `cdk synth` succeeds in `packages/infra` when you change infrastructure.
+- **Web (packages/web):** Vitest for unit tests (auth, Programs CRUD, Transactions, Rewards, Billing); mock API and auth. Playwright E2E in `e2e/`: login → dashboard, create program, earn, redeem. Run E2E with `npm run test:e2e` (start dev server or use webServer in Playwright config). For runs against a real staged API, use a test user and omit or adjust route mocks in `e2e/flows.spec.ts`.
+- **A11y:** Automated axe E2E in `packages/web`: `npm run test:e2e -- e2e/a11y.spec.ts` (WCAG 2.1 AA on login, signup, home; use `E2E_AUTH=1` for protected pages). Manual audit: Lighthouse or `npx @axe-core/cli`. Fix contrast (4.5:1 for text), focus-visible states, and ensure keyboard and screen-reader use (semantic HTML, `aria-*` where needed). Select/Tabs are keyboard-accessible; verify focus order and escape to close.
 
 ## Output expectations
 
