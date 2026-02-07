@@ -41,6 +41,16 @@ test:api:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
+test:integration:
+  stage: test
+  script:
+    - cd packages/api && npm ci
+    - cd packages/api && npm run test:integration
+  rules:
+    - if: $API_BASE_URL != null && ($CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "develop")
+  variables:
+    API_BASE_URL: $API_BASE_URL
+
 synth:
   stage: synth
   script:

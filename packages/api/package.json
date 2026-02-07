@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "test": "node --test test/**/*.test.js",
+    "test:integration": "node --test integration/api-integration.test.mjs",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
