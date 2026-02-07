@@ -35,7 +35,7 @@ Align with [docs/DEVELOPMENT_STANDARDS.md](docs/DEVELOPMENT_STANDARDS.md), [docs
 
 | ID | Task | Done when |
 |----|------|-----------|
-| F.Q1 | DESIGN_SYSTEM.md or COMPONENTS.md | Design tokens and component list documented |
+| F.Q1 | DESIGN_SYSTEM.md or COMPONENTS.md | **Done** 2025-02-07 — docs/DESIGN_SYSTEM.md, docs/COMPONENTS.md |
 | F.Q2 | A11y pass (Lighthouse / axe) | No new regressions; focus order, contrast |
 | F.Q3 | E2E for login → dashboard → transaction filter | Playwright flow with API mocks or E2E_AUTH |
 
