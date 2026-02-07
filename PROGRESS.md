@@ -17,3 +17,6 @@ Format: `| date | task-id | short description | branch | commit/timestamp |`
 | 2025-02-07 | 2.4 | Program setup UI (create/edit program) | develop | merged feature/phase2-auth-and-programs |
 | 2025-02-07 | 2.5 | Transaction/balance UI (earn/burn, view balance) | develop | merged feature/phase2-auth-and-programs |
 | 2025-02-07 | 2.6 | Rewards catalog and redeem flow UI | develop | merged feature/phase2-rewards-ui |
+| 2025-02-07 | 3.2 | E2E/API integration tests (Newman-style, CI when API_BASE_URL set) | develop | merged feature/phase3-integration-and-ops |
+| 2025-02-07 | 3.4 | Cost and monitoring: tags, MONITORING.md, Lambda log retention | develop | merged feature/phase3-integration-and-ops |
+| 2025-02-07 | 3.6 | GST and invoice: INVOICE_GST.md placeholder | develop | merged feature/phase3-integration-and-ops |
