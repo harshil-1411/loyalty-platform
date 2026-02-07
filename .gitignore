@@ -6,3 +6,7 @@ dist
 cdk.out
 .env
 .env.*
+
+# AWS IAM access key exports (never commit)
+*_accessKeys.csv
+*accessKeys*.csv
