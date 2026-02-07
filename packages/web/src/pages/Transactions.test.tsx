@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Transactions } from "./Transactions";
 import { useAuth } from "@/auth/useAuth";
@@ -40,6 +40,10 @@ describe("Transactions (earn/burn)", () => {
       transactionId: "tx2",
       balance: 90,
       points: 10,
+    });
+    vi.mocked(transactionsApi.listTransactions).mockResolvedValue({
+      transactions: [],
+      nextToken: null,
     });
   });
 
@@ -112,5 +116,27 @@ describe("Transactions (earn/burn)", () => {
     });
     const { container } = render(<Transactions />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it("displays transaction history with type filter when transactions exist", async () => {
+    vi.mocked(transactionsApi.listTransactions).mockResolvedValue({
+      transactions: [
+        { transactionId: "t1", type: "earn", memberId: "m1", points: 10, createdAt: "2025-01-01T12:00:00Z" },
+        { transactionId: "t2", type: "burn", memberId: "m1", points: 5, createdAt: "2025-01-02T12:00:00Z" },
+        { transactionId: "t3", type: "earn", memberId: "m1", points: 20, createdAt: "2025-01-03T12:00:00Z" },
+      ],
+      nextToken: null,
+    });
+    const user = userEvent.setup();
+    render(<Transactions />);
+    await screen.findByRole("combobox");
+    await user.type(screen.getByPlaceholderText(/member_123|user sub/i), "member_1");
+    await screen.findByText(/transaction history/i);
+    expect(screen.getByRole("combobox", { name: /filter by type/i })).toBeInTheDocument();
+    const grid = screen.getByRole("grid", { name: /transaction history/i });
+    expect(grid).toBeInTheDocument();
+    within(grid).getByText(/\+10/);
+    within(grid).getByText(/\+20/);
+    within(grid).getByText(/-5/);
   });
 });

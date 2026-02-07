@@ -23,3 +23,4 @@ Format: `| date | task-id | short description | branch | commit/timestamp |`
 | 2025-02-07 | 4.1–4.6 | Razorpay plans, subscription link, webhook, billing UI, i18n, India formatting | develop | merged feature/phase4-razorpay-i18n |
 | 2025-02-07 | 5.1–5.7 | Phase 5 growth features: scoped in PHASE5_FEATURES.md (implementation when needed) | develop | docs/PHASE5_FEATURES.md |
 | 2025-02-07 | B.1–B.12 | Python FastAPI backend: structure, DynamoDB, auth, errors, logging, rate limit, security, endpoints, OpenAPI, tests, CDK (replace Node Lambda) | — | packages/backend, BACKEND_TASKS.md, docs/openapi.yaml |
+| 2025-02-07 | F.1 | Transaction history: type filter (client-side), responsive card view on mobile, ARIA/labels | feature/frontend-transaction-history-ux | (this session) |

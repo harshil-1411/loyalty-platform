@@ -26,6 +26,8 @@ export interface AuthUser {
   username: string
   email?: string
   sub: string
+  /** From Cognito custom attribute; used as tenant for API calls. */
+  custom_tenant_id?: string
 }
 
 function parseIdTokenPayload(idToken: string): AuthUser {
@@ -34,6 +36,7 @@ function parseIdTokenPayload(idToken: string): AuthUser {
     username: payload['cognito:username'] ?? payload.sub,
     email: payload.email,
     sub: payload.sub,
+    custom_tenant_id: payload['custom:tenant_id'],
   }
 }
 

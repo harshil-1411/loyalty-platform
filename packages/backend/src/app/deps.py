@@ -16,3 +16,11 @@ async def get_tenant_id(
     if not tenant:
         raise UnauthorizedError("Missing or invalid tenant (X-Tenant-Id required)")
     return tenant
+
+
+async def get_user_sub(request: Request) -> str:
+    """Cognito user sub from authorizer context. Raises 401 if missing."""
+    sub = getattr(request.state, "user_sub", None) or ""
+    if not sub:
+        raise UnauthorizedError("User identity not available")
+    return sub

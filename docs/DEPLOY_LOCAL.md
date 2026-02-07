@@ -1,5 +1,7 @@
 # Deploy and run (local dev against deployed stack)
 
+See **[docs/DEPLOY.md](DEPLOY.md)** for dev/prod parity (no bypasses) and suggested next steps.
+
 Stack is deployed to **AWS account 396913709733** (ap-south-1). Use the **loyalty** AWS profile for CDK and CLI.
 
 ## AWS profile
@@ -55,10 +57,12 @@ API_BASE_URL=https://nx51c96s16.execute-api.ap-south-1.amazonaws.com npm run tes
 
 ## Redeploy after code changes
 
-1. Build API and web:  
-   `cd packages/api && npm run build`  
+The backend is **Python FastAPI** (Lambda container). CDK builds the backend Docker image during deploy. You only need to build the **web** app.
+
+1. **Docker** must be running (required to build the backend Lambda image).
+2. Build web:  
    `cd packages/web && npm run build`
-2. Deploy (use the loyalty profile):  
+3. Deploy (use the loyalty profile):  
    `cd packages/infra && AWS_PROFILE=loyalty npx cdk deploy -c environment=dev --require-approval never`
 
 Update `.env` if CDK outputs change (e.g. new stack).

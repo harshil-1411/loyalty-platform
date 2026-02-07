@@ -6,6 +6,7 @@ export default {
   'nav.rewards': 'Rewards',
   'nav.billing': 'Billing',
   'nav.contact': 'Contact',
+  'nav.settings': 'Settings',
   'nav.signOut': 'Sign out',
   'dashboard.title': 'Dashboard',
   'dashboard.tenantContext': 'Tenant context',
