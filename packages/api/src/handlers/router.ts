@@ -3,6 +3,8 @@ import { handler as helloHandler } from './hello';
 import * as programs from './programs';
 import * as transactions from './transactions';
 import * as rewards from './rewards';
+import * as webhookRazorpay from './webhook-razorpay';
+import * as billing from './billing';
 
 const TENANT_HEADER = 'x-tenant-id';
 
@@ -20,7 +22,22 @@ export const handler: APIGatewayProxyHandlerV2 = async (event): Promise<APIGatew
     return res;
   }
 
+  if (path === '/api/v1/webhooks/razorpay' && method === 'POST') {
+    const body = typeof event.body === 'string' ? event.body : '';
+    const sig = event.headers?.['x-razorpay-signature'] ?? event.headers?.['X-Razorpay-Signature'];
+    return webhookRazorpay.handleRazorpayWebhook(body, typeof sig === 'string' ? sig : undefined);
+  }
+
   const tenantId = getTenantId(event);
+
+  if (path === '/api/v1/billing/status' && method === 'GET' && tenantId) {
+    return billing.getBillingStatus(tenantId);
+  }
+  if (path === '/api/v1/billing/subscription-link' && method === 'POST' && tenantId) {
+    const body = event.body ? JSON.parse(event.body) : {};
+    return billing.createSubscriptionLink(tenantId, body);
+  }
+
   if (!tenantId && path.startsWith('/api/v1/programs')) {
     return { statusCode: 401, body: JSON.stringify({ error: 'Missing X-Tenant-Id header' }) };
   }
