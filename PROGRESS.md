@@ -20,3 +20,5 @@ Format: `| date | task-id | short description | branch | commit/timestamp |`
 | 2025-02-07 | 3.2 | E2E/API integration tests (Newman-style, CI when API_BASE_URL set) | develop | merged feature/phase3-integration-and-ops |
 | 2025-02-07 | 3.4 | Cost and monitoring: tags, MONITORING.md, Lambda log retention | develop | merged feature/phase3-integration-and-ops |
 | 2025-02-07 | 3.6 | GST and invoice: INVOICE_GST.md placeholder | develop | merged feature/phase3-integration-and-ops |
+| 2025-02-07 | 4.1–4.6 | Razorpay plans, subscription link, webhook, billing UI, i18n, India formatting | develop | merged feature/phase4-razorpay-i18n |
+| 2025-02-07 | 5.1–5.7 | Phase 5 growth features: scoped in PHASE5_FEATURES.md (implementation when needed) | develop | docs/PHASE5_FEATURES.md |
