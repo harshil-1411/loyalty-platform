@@ -16,3 +16,4 @@ Format: `| date | task-id | short description | branch | commit/timestamp |`
 | 2025-02-07 | 2.3 | Dashboard shell with tenant context | develop | merged feature/phase2-auth-and-programs |
 | 2025-02-07 | 2.4 | Program setup UI (create/edit program) | develop | merged feature/phase2-auth-and-programs |
 | 2025-02-07 | 2.5 | Transaction/balance UI (earn/burn, view balance) | develop | merged feature/phase2-auth-and-programs |
+| 2025-02-07 | 2.6 | Rewards catalog and redeem flow UI | develop | merged feature/phase2-rewards-ui |
