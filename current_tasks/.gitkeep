@@ -1,0 +1,3 @@
+# Lock files go here: task-<id>-<slug>.lock
+# Example: task-0-4-setup-cdk.lock
+# Content: agent=<id>, branch=feature/xxx, started=<iso-time>

@@ -1,12 +1,18 @@
-# loyalty
+# Loyalty Management Platform
 
+SaaS serverless application on AWS for businesses to run loyalty programs (points, tiers, rewards, campaigns). Deployed with AWS CDK. Multi-tenant; APIs and web dashboard.
 
+**Mission and scope:** [docs/MISSION.md](docs/MISSION.md)  
+**Product requirements:** [docs/PRD.md](docs/PRD.md) · [Decisions](docs/DECISIONS.md)  
+**Architecture and stack:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [Architecture diagrams](docs/ARCHITECTURE_DIAGRAMS.md)  
+**Pricing (India, INR):** [docs/PRICING.md](docs/PRICING.md)  
+**Agent coordination:** [docs/AGENT_RUNBOOK.md](docs/AGENT_RUNBOOK.md) · [TASKS.md](TASKS.md)
 
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **Infrastructure:** `cd packages/infra && npm install && npx cdk synth`
+- **Git workflow:** See [.cursor/rules/git-branching-model.mdc](.cursor/rules/git-branching-model.mdc) (git-flow).
+- **GitLab:** [GITLAB_SETUP.md](GITLAB_SETUP.md)
 
 ## Add your files
 

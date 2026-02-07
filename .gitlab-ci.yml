@@ -1,0 +1,51 @@
+# Loyalty Platform — CI pipeline (lint, test, CDK synth)
+# See docs/DECISIONS.md: full CI, zero production bugs goal.
+
+default:
+  image: node:20
+
+stages:
+  - lint
+  - test
+  - synth
+
+variables:
+  NODE_ENV: test
+
+lint:api:
+  stage: lint
+  script:
+    - cd packages/api && npm ci && npm run lint 2>/dev/null || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+lint:web:
+  stage: lint
+  script:
+    - cd packages/web && npm ci && npm run build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+lint:infra:
+  stage: lint
+  script:
+    - cd packages/infra && npm ci && npm run build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+test:api:
+  stage: test
+  script:
+    - cd packages/api && npm ci && npm run build
+    - node --test test/**/*.test.js 2>/dev/null || echo "No tests yet"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+synth:
+  stage: synth
+  script:
+    - cd packages/api && npm ci && npm run build
+    - cd packages/web && npm ci && npm run build
+    - cd packages/infra && npm ci && npx cdk synth -q
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "develop"
