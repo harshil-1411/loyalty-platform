@@ -1,0 +1,140 @@
+.transactions-page {
+  max-width: 720px;
+}
+
+.transactions-page h2 {
+  margin: 0 0 0.5rem;
+}
+
+.transactions-intro {
+  color: #aaa;
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+}
+
+.transactions-empty {
+  color: #aaa;
+}
+
+.transactions-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.transactions-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.transactions-select,
+.transactions-input {
+  min-width: 200px;
+  padding: 0.5rem 0.75rem;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.transactions-select:focus,
+.transactions-input:focus {
+  outline: none;
+  border-color: #7eb8da;
+}
+
+.transactions-error {
+  color: #e57373;
+  margin: 0 0 1rem;
+}
+
+.transactions-balance-card {
+  padding: 1.25rem;
+  background: #16213e;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.transactions-balance-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: #aaa;
+}
+
+.transactions-balance-value {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.transactions-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.transactions-form {
+  padding: 1.25rem;
+  background: #16213e;
+  border-radius: 8px;
+  min-width: 200px;
+}
+
+.transactions-form h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.transactions-form label {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.transactions-form .transactions-input {
+  min-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.transactions-form .transactions-btn {
+  margin-top: 0.5rem;
+}
+
+.transactions-btn {
+  padding: 0.5rem 1rem;
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #eee;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.transactions-btn:hover {
+  background: #252540;
+  border-color: #444;
+}
+
+.transactions-btn.primary {
+  background: #0f3460;
+  border-color: #0f3460;
+}
+
+.transactions-btn.primary:hover {
+  background: #1a4a7a;
+}
+
+.transactions-history-note {
+  color: #888;
+  font-size: 0.85rem;
+  margin: 0;
+}

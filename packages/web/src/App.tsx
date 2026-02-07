@@ -3,9 +3,10 @@ import { useAuth } from './auth/useAuth'
 import { Login } from './pages/Login'
 import { SignUp } from './pages/SignUp'
 import { Programs } from './pages/Programs'
+import { Transactions } from './pages/Transactions'
 import './App.css'
 
-type Page = 'dashboard' | 'programs' | 'contact'
+type Page = 'dashboard' | 'programs' | 'transactions' | 'contact'
 
 function AuthenticatedApp() {
   const { state, signOut } = useAuth()
@@ -22,6 +23,7 @@ function AuthenticatedApp() {
         <span className="nav-brand">Loyalty Platform</span>
         <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Dashboard</button>
         <button className={page === 'programs' ? 'active' : ''} onClick={() => setPage('programs')}>Programs</button>
+        <button className={page === 'transactions' ? 'active' : ''} onClick={() => setPage('transactions')}>Transactions</button>
         <button className={page === 'contact' ? 'active' : ''} onClick={() => setPage('contact')}>Contact</button>
         <span className="nav-tenant" title="Signed in">{tenantContext}</span>
         <button type="button" onClick={signOut} className="nav-signout">Sign out</button>
@@ -35,6 +37,7 @@ function AuthenticatedApp() {
           </div>
         )}
         {page === 'programs' && <Programs />}
+        {page === 'transactions' && <Transactions />}
         {page === 'contact' && (
           <div>
             <h2>Contact &amp; Support</h2>
