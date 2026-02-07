@@ -4,9 +4,10 @@ import { Login } from './pages/Login'
 import { SignUp } from './pages/SignUp'
 import { Programs } from './pages/Programs'
 import { Transactions } from './pages/Transactions'
+import { Rewards } from './pages/Rewards'
 import './App.css'
 
-type Page = 'dashboard' | 'programs' | 'transactions' | 'contact'
+type Page = 'dashboard' | 'programs' | 'transactions' | 'rewards' | 'contact'
 
 function AuthenticatedApp() {
   const { state, signOut } = useAuth()
@@ -24,6 +25,7 @@ function AuthenticatedApp() {
         <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Dashboard</button>
         <button className={page === 'programs' ? 'active' : ''} onClick={() => setPage('programs')}>Programs</button>
         <button className={page === 'transactions' ? 'active' : ''} onClick={() => setPage('transactions')}>Transactions</button>
+        <button className={page === 'rewards' ? 'active' : ''} onClick={() => setPage('rewards')}>Rewards</button>
         <button className={page === 'contact' ? 'active' : ''} onClick={() => setPage('contact')}>Contact</button>
         <span className="nav-tenant" title="Signed in">{tenantContext}</span>
         <button type="button" onClick={signOut} className="nav-signout">Sign out</button>
@@ -38,6 +40,7 @@ function AuthenticatedApp() {
         )}
         {page === 'programs' && <Programs />}
         {page === 'transactions' && <Transactions />}
+        {page === 'rewards' && <Rewards />}
         {page === 'contact' && (
           <div>
             <h2>Contact &amp; Support</h2>
