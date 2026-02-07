@@ -5,6 +5,7 @@ import type { Program } from '../api/programs'
 import type { Reward } from '../api/rewards'
 import { listPrograms } from '../api/programs'
 import { listRewards, createReward, redeem } from '../api/rewards'
+import { formatINR } from '../i18n'
 import './Rewards.css'
 
 type Tab = 'catalog' | 'redeem'
@@ -203,7 +204,7 @@ function RewardsCatalog({
             {rewards.map((r) => (
               <li key={r.rewardId} className="rewards-item">
                 <span className="rewards-item-name">{r.name}</span>
-                <span className="rewards-item-cost">{r.pointsCost} pts</span>
+                <span className="rewards-item-cost">{r.pointsCost} pts ({formatINR(r.pointsCost)} equiv.)</span>
               </li>
             ))}
           </ul>

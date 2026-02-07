@@ -5,9 +5,11 @@ import { SignUp } from './pages/SignUp'
 import { Programs } from './pages/Programs'
 import { Transactions } from './pages/Transactions'
 import { Rewards } from './pages/Rewards'
+import { Billing } from './pages/Billing'
+import { t } from './i18n'
 import './App.css'
 
-type Page = 'dashboard' | 'programs' | 'transactions' | 'rewards' | 'contact'
+type Page = 'dashboard' | 'programs' | 'transactions' | 'rewards' | 'billing' | 'contact'
 
 function AuthenticatedApp() {
   const { state, signOut } = useAuth()
@@ -21,29 +23,31 @@ function AuthenticatedApp() {
   return (
     <div className="app">
       <nav className="nav">
-        <span className="nav-brand">Loyalty Platform</span>
-        <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Dashboard</button>
-        <button className={page === 'programs' ? 'active' : ''} onClick={() => setPage('programs')}>Programs</button>
-        <button className={page === 'transactions' ? 'active' : ''} onClick={() => setPage('transactions')}>Transactions</button>
-        <button className={page === 'rewards' ? 'active' : ''} onClick={() => setPage('rewards')}>Rewards</button>
-        <button className={page === 'contact' ? 'active' : ''} onClick={() => setPage('contact')}>Contact</button>
+        <span className="nav-brand">{t('app.title')}</span>
+        <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>{t('nav.dashboard')}</button>
+        <button className={page === 'programs' ? 'active' : ''} onClick={() => setPage('programs')}>{t('nav.programs')}</button>
+        <button className={page === 'transactions' ? 'active' : ''} onClick={() => setPage('transactions')}>{t('nav.transactions')}</button>
+        <button className={page === 'rewards' ? 'active' : ''} onClick={() => setPage('rewards')}>{t('nav.rewards')}</button>
+        <button className={page === 'billing' ? 'active' : ''} onClick={() => setPage('billing')}>{t('nav.billing')}</button>
+        <button className={page === 'contact' ? 'active' : ''} onClick={() => setPage('contact')}>{t('nav.contact')}</button>
         <span className="nav-tenant" title="Signed in">{tenantContext}</span>
-        <button type="button" onClick={signOut} className="nav-signout">Sign out</button>
+        <button type="button" onClick={signOut} className="nav-signout">{t('nav.signOut')}</button>
       </nav>
       <main className="main">
         {page === 'dashboard' && (
           <div>
-            <h2>Dashboard</h2>
-            <p><strong>Tenant context:</strong> {tenantContext}</p>
+            <h2>{t('dashboard.title')}</h2>
+            <p><strong>{t('dashboard.tenantContext')}:</strong> {tenantContext}</p>
             <p>Overview and quick actions (placeholder).</p>
           </div>
         )}
         {page === 'programs' && <Programs />}
         {page === 'transactions' && <Transactions />}
         {page === 'rewards' && <Rewards />}
+        {page === 'billing' && <Billing />}
         {page === 'contact' && (
           <div>
-            <h2>Contact &amp; Support</h2>
+            <h2>{t('contact.title')}</h2>
             <p>Email: <a href="mailto:support@loyalty.example.com">support@loyalty.example.com</a></p>
             <p>Support number: <a href="tel:+911234567890">+91 1234567890</a></p>
           </div>
