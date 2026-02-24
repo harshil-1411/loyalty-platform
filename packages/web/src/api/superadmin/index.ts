@@ -1,11 +1,15 @@
 /**
  * Super-admin API client.
  *
- * Currently returns mock data. When the real backend endpoints exist,
- * swap each function body to call the actual API via `apiGet` / `apiPost`.
- * The return types stay the same — they **are** the API contract.
+ * - devMode (VITE_SUPER_ADMIN_MODE=true): returns mock data, no real API calls.
+ * - production mode: calls the real backend endpoints with the Cognito idToken.
+ *
+ * The return types are the API contract — shapes must match backend models/superadmin.py.
  */
 
+import { config } from '../../config'
+import { getIdToken } from '../../auth/cognito'
+import { apiGet } from '../client'
 import type {
   Tenant,
   PlatformMetrics,
@@ -31,33 +35,67 @@ import {
 
 /* ---- helpers ---- */
 
-/** Simulate network latency */
+const isDev = config.superAdmin.devMode
+
+/** Simulate network latency (dev / mock mode only). */
 function delay<T>(data: T, ms = 300): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms))
 }
 
+/**
+ * Authenticated GET request to a super-admin backend endpoint.
+ * Passes the Cognito idToken via Authorization header; X-Tenant-Id is empty
+ * because super-admin endpoints are cross-tenant.
+ */
+async function adminGet<T>(path: string, params?: Record<string, string | undefined>): Promise<T> {
+  const token = await getIdToken()
+  let fullPath = `/api/v1/admin${path}`
+  if (params) {
+    const qs = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
+      .join('&')
+    if (qs) fullPath = `${fullPath}?${qs}`
+  }
+  // tenantId is intentionally empty — super-admin endpoints don't use X-Tenant-Id
+  return apiGet<T>(fullPath, '', token)
+}
+
 /* ------------------------------------------------------------------ */
-/*  Platform overview                                                 */
+/*  Platform overview                                                  */
 /* ------------------------------------------------------------------ */
 
 export function getPlatformMetrics(): Promise<PlatformMetrics> {
-  return delay(mockPlatformMetrics)
+  if (isDev) return delay(mockPlatformMetrics)
+  return adminGet<PlatformMetrics>('/metrics')
 }
 
+/**
+ * Tenant growth time-series.
+ * No backend endpoint exists yet — returns mock data in all modes.
+ * TODO: add GET /api/v1/admin/metrics/tenant-growth when available.
+ */
 export function getTenantGrowthSeries(): Promise<TimeSeriesPoint[]> {
   return delay(mockTenantGrowth)
 }
 
+/**
+ * Revenue trend time-series.
+ * No backend endpoint exists yet — returns mock data in all modes.
+ * TODO: add GET /api/v1/admin/metrics/revenue-trend when available.
+ */
 export function getRevenueTrendSeries(): Promise<TimeSeriesPoint[]> {
   return delay(mockRevenueTrend)
 }
 
-export function getPlanDistribution(): Promise<PlanDistribution[]> {
-  return delay(mockPlanDistribution)
+export async function getPlanDistribution(): Promise<PlanDistribution[]> {
+  if (isDev) return delay(mockPlanDistribution)
+  const res = await adminGet<{ plans: PlanDistribution[] }>('/plans')
+  return res.plans
 }
 
 /* ------------------------------------------------------------------ */
-/*  Tenants                                                           */
+/*  Tenants                                                            */
 /* ------------------------------------------------------------------ */
 
 export interface TenantFilters {
@@ -66,49 +104,70 @@ export interface TenantFilters {
   status?: string | null
 }
 
-export function listTenants(filters?: TenantFilters): Promise<Tenant[]> {
-  let results = [...mockTenants]
-  if (filters?.search) {
-    const q = filters.search.toLowerCase()
-    results = results.filter(
-      (t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)
-    )
+export async function listTenants(filters?: TenantFilters): Promise<Tenant[]> {
+  if (isDev) {
+    let results = [...mockTenants]
+    if (filters?.search) {
+      const q = filters.search.toLowerCase()
+      results = results.filter(
+        (t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)
+      )
+    }
+    if (filters?.plan) {
+      results = results.filter((t) => (filters.plan === 'none' ? t.plan === null : t.plan === filters.plan))
+    }
+    if (filters?.status) {
+      results = results.filter((t) => t.billingStatus === filters.status)
+    }
+    return delay(results)
   }
-  if (filters?.plan) {
-    results = results.filter((t) => (filters.plan === 'none' ? t.plan === null : t.plan === filters.plan))
-  }
-  if (filters?.status) {
-    results = results.filter((t) => t.billingStatus === filters.status)
-  }
-  return delay(results)
+  const res = await adminGet<{ tenants: Tenant[] }>('/tenants', {
+    search: filters?.search ?? undefined,
+    plan: filters?.plan ?? undefined,
+    status: filters?.status ?? undefined,
+  })
+  return res.tenants
 }
 
-export function getTenantDetail(tenantId: string): Promise<Tenant | undefined> {
-  return delay(mockTenants.find((t) => t.id === tenantId))
+export async function getTenantDetail(tenantId: string): Promise<Tenant | undefined> {
+  if (isDev) return delay(mockTenants.find((t) => t.id === tenantId))
+  try {
+    const res = await adminGet<{ tenant: Tenant; programs: Program[] }>(`/tenants/${encodeURIComponent(tenantId)}`)
+    return res.tenant
+  } catch {
+    return undefined
+  }
 }
 
-export function getTenantPrograms(tenantId: string): Promise<Program[]> {
-  return delay(mockPrograms.filter((p) => p.tenantId === tenantId))
+export async function getTenantPrograms(tenantId: string): Promise<Program[]> {
+  if (isDev) return delay(mockPrograms.filter((p) => p.tenantId === tenantId))
+  return adminGet<Program[]>(`/tenants/${encodeURIComponent(tenantId)}/programs`)
 }
 
 /* ------------------------------------------------------------------ */
-/*  Pricing plans                                                     */
+/*  Pricing plans                                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Pricing plans are static config — no backend endpoint.
+ * Returns mock data in all modes.
+ */
 export function listPricingPlans(): Promise<PricingPlan[]> {
   return delay(mockPricingPlans)
 }
 
 /* ------------------------------------------------------------------ */
-/*  Billing                                                           */
+/*  Billing                                                            */
 /* ------------------------------------------------------------------ */
 
-export function getSubscriptionEvents(): Promise<SubscriptionEvent[]> {
-  return delay(mockSubscriptionEvents)
+export async function getSubscriptionEvents(): Promise<SubscriptionEvent[]> {
+  if (isDev) return delay(mockSubscriptionEvents)
+  const res = await adminGet<{ events: SubscriptionEvent[] }>('/billing/events')
+  return res.events
 }
 
 /* ------------------------------------------------------------------ */
-/*  Users                                                             */
+/*  Users                                                              */
 /* ------------------------------------------------------------------ */
 
 export interface UserFilters {
@@ -117,23 +176,31 @@ export interface UserFilters {
   role?: string | null
 }
 
-export function listUsers(filters?: UserFilters): Promise<PlatformUser[]> {
-  let results = [...mockUsers]
-  if (filters?.search) {
-    const q = filters.search.toLowerCase()
-    results = results.filter(
-      (u) =>
-        u.username.toLowerCase().includes(q) ||
-        u.email.toLowerCase().includes(q)
-    )
+export async function listUsers(filters?: UserFilters): Promise<PlatformUser[]> {
+  if (isDev) {
+    let results = [...mockUsers]
+    if (filters?.search) {
+      const q = filters.search.toLowerCase()
+      results = results.filter(
+        (u) =>
+          u.username.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q)
+      )
+    }
+    if (filters?.tenantId) {
+      results = results.filter((u) => u.tenantId === filters.tenantId)
+    }
+    if (filters?.role) {
+      results = results.filter((u) => u.role === filters.role)
+    }
+    return delay(results)
   }
-  if (filters?.tenantId) {
-    results = results.filter((u) => u.tenantId === filters.tenantId)
-  }
-  if (filters?.role) {
-    results = results.filter((u) => u.role === filters.role)
-  }
-  return delay(results)
+  const res = await adminGet<{ users: PlatformUser[] }>('/users', {
+    search: filters?.search ?? undefined,
+    tenantId: filters?.tenantId ?? undefined,
+    role: filters?.role ?? undefined,
+  })
+  return res.users
 }
 
 /* ---- re-export types for convenience ---- */

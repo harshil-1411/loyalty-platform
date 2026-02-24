@@ -1,39 +1,17 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Search, Building2, ArrowUpRight, X } from "lucide-react";
+import { Building2, ArrowUpRight } from "lucide-react";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { listTenants, type Tenant, type BillingStatus, type PlanKey } from "@/api/superadmin";
-import { cn } from "@/lib/utils";
-
-/* ---- status badge config ---- */
-const STATUS_STYLES: Record<BillingStatus, string> = {
-  active: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  trialing: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  past_due: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  cancelled: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  none: "bg-muted text-muted-foreground",
-};
-
-const STATUS_LABELS: Record<BillingStatus, string> = {
-  active: "Active",
-  trialing: "Trialing",
-  past_due: "Past Due",
-  cancelled: "Cancelled",
-  none: "No Plan",
-};
+import { listTenants, type Tenant, type PlanKey } from "@/api/superadmin";
+import { Pagination, PAGE_SIZE_DEFAULT } from "@/components/ui/pagination";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { DataTable } from "@/components/ui/data-table";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   starter: "Starter",
@@ -57,6 +35,7 @@ export function TenantList() {
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,13 +65,24 @@ export function TenantList() {
     return result;
   }, [allTenants, search, planFilter, statusFilter]);
 
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE_DEFAULT;
+    return filtered.slice(start, start + PAGE_SIZE_DEFAULT);
+  }, [filtered, page]);
+
   const hasFilters = search !== "" || planFilter !== "all" || statusFilter !== "all";
 
   function clearFilters() {
     setSearch("");
     setPlanFilter("all");
     setStatusFilter("all");
+    setPage(1);
   }
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, planFilter, statusFilter]);
 
   /* ── Loading ── */
   if (loading) {
@@ -124,50 +114,44 @@ export function TenantList() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            type="search"
-            placeholder="Search by name, ID, or email…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            aria-label="Search tenants"
-          />
-        </div>
-        <Select value={planFilter} onValueChange={setPlanFilter}>
-          <SelectTrigger className="w-[140px]" aria-label="Filter by plan">
-            <SelectValue placeholder="Plan" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Plans</SelectItem>
-            <SelectItem value="starter">Starter</SelectItem>
-            <SelectItem value="growth">Growth</SelectItem>
-            <SelectItem value="scale">Scale</SelectItem>
-            <SelectItem value="none">No Plan</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px]" aria-label="Filter by status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="trialing">Trialing</SelectItem>
-            <SelectItem value="past_due">Past Due</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="none">None</SelectItem>
-          </SelectContent>
-        </Select>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
-            <X className="h-3.5 w-3.5" />
-            Clear
-          </Button>
-        )}
-      </div>
+      <FilterBar
+        className="mb-6"
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by name, ID, or email…"
+        searchAriaLabel="Search tenants"
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+        selects={[
+          {
+            value: planFilter,
+            onValueChange: setPlanFilter,
+            "aria-label": "Filter by plan",
+            triggerClassName: "w-[140px]",
+            options: [
+              { value: "all", label: "All Plans" },
+              { value: "starter", label: "Starter" },
+              { value: "growth", label: "Growth" },
+              { value: "scale", label: "Scale" },
+              { value: "none", label: "No Plan" },
+            ],
+          },
+          {
+            value: statusFilter,
+            onValueChange: setStatusFilter,
+            "aria-label": "Filter by status",
+            triggerClassName: "w-[150px]",
+            options: [
+              { value: "all", label: "All Statuses" },
+              { value: "active", label: "Active" },
+              { value: "trialing", label: "Trialing" },
+              { value: "past_due", label: "Past Due" },
+              { value: "cancelled", label: "Cancelled" },
+              { value: "none", label: "None" },
+            ],
+          },
+        ]}
+      />
 
       {/* Results */}
       {filtered.length === 0 ? (
@@ -186,18 +170,20 @@ export function TenantList() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {/* Desktop table header */}
-          <div className="hidden rounded-md border border-border bg-muted/50 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
-            <span>Tenant</span>
-            <span>Plan</span>
-            <span>Status</span>
-            <span className="text-right">Members</span>
-            <span className="text-right">Created</span>
-            <span className="w-8" />
-          </div>
-
-          {filtered.map((tenant) => (
+        <>
+          <DataTable
+            isEmpty={false}
+            headerGridClass="hidden md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]"
+            columns={[
+              { header: "Tenant" },
+              { header: "Plan" },
+              { header: "Status" },
+              { header: <span className="text-right">Members</span>, className: "text-right" },
+              { header: <span className="text-right">Created</span>, className: "text-right" },
+              { header: null, className: "w-8" },
+            ]}
+          >
+            {paginated.map((tenant) => (
             <Link
               key={tenant.id}
               to={`/admin/tenants/${tenant.id}`}
@@ -213,9 +199,7 @@ export function TenantList() {
                   {tenant.plan ? PLAN_LABELS[tenant.plan] : <span className="text-muted-foreground">—</span>}
                 </span>
                 <span>
-                  <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[0.6875rem] font-medium leading-tight", STATUS_STYLES[tenant.billingStatus])}>
-                    {STATUS_LABELS[tenant.billingStatus]}
-                  </span>
+                  <StatusBadge variant="billing" status={tenant.billingStatus} />
                 </span>
                 <span className="text-right text-sm tabular-nums text-foreground">
                   {tenant.memberCount.toLocaleString("en-IN")}
@@ -233,9 +217,7 @@ export function TenantList() {
                     <p className="truncate text-sm font-medium text-foreground">{tenant.name}</p>
                     <p className="truncate text-xs text-muted-foreground">{tenant.contactEmail}</p>
                   </div>
-                  <span className={cn("shrink-0 inline-flex rounded-full px-2 py-0.5 text-[0.6875rem] font-medium leading-tight", STATUS_STYLES[tenant.billingStatus])}>
-                    {STATUS_LABELS[tenant.billingStatus]}
-                  </span>
+                  <StatusBadge variant="billing" status={tenant.billingStatus} className="shrink-0" />
                 </div>
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <span>{tenant.plan ? PLAN_LABELS[tenant.plan] : "No plan"}</span>
@@ -244,8 +226,17 @@ export function TenantList() {
                 </div>
               </div>
             </Link>
-          ))}
-        </div>
+            ))}
+          </DataTable>
+          <Pagination
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE_DEFAULT}
+            page={page}
+            onPageChange={setPage}
+            className="mt-4"
+            aria-label="Tenant list pagination"
+          />
+        </>
       )}
     </div>
   );

@@ -2,7 +2,8 @@
 
 from fastapi import Header, Request
 
-from app.exceptions import UnauthorizedError
+from app.config import settings
+from app.exceptions import ForbiddenError, UnauthorizedError
 
 TENANT_HEADER = "x-tenant-id"
 
@@ -24,3 +25,13 @@ async def get_user_sub(request: Request) -> str:
     if not sub:
         raise UnauthorizedError("User identity not available")
     return sub
+
+
+async def require_super_admin(request: Request) -> str:
+    """Verify caller is in the super_admin Cognito group. Returns user sub. In dev, SUPER_ADMIN_BYPASS=true skips check."""
+    if settings.super_admin_bypass:
+        return await get_user_sub(request)
+    groups: list = getattr(request.state, "cognito_groups", None) or []
+    if "super_admin" not in groups:
+        raise ForbiddenError("Super admin access required")
+    return await get_user_sub(request)

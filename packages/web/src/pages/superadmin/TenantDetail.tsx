@@ -22,27 +22,10 @@ import {
   getTenantPrograms,
   type Tenant,
   type Program,
-  type BillingStatus,
   type PlanKey,
 } from "@/api/superadmin";
-import { cn } from "@/lib/utils";
-
-/* ---- shared helpers ---- */
-const STATUS_STYLES: Record<BillingStatus, string> = {
-  active: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  trialing: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  past_due: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  cancelled: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  none: "bg-muted text-muted-foreground",
-};
-
-const STATUS_LABELS: Record<BillingStatus, string> = {
-  active: "Active",
-  trialing: "Trialing",
-  past_due: "Past Due",
-  cancelled: "Cancelled",
-  none: "No Plan",
-};
+import { StatusBadge } from "@/components/ui/status-badge";
+import { MetricCard } from "@/components/ui/metric-card";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   starter: "Starter",
@@ -149,9 +132,7 @@ export function TenantDetail() {
             <h1 id="tenant-detail-heading" className="text-xl font-semibold tracking-tight text-foreground">
               {tenant.name}
             </h1>
-            <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium leading-tight", STATUS_STYLES[tenant.billingStatus])}>
-              {STATUS_LABELS[tenant.billingStatus]}
-            </span>
+            <StatusBadge variant="billing" status={tenant.billingStatus} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {tenant.contactEmail} &middot; ID: {tenant.id} &middot; Joined {formatDate(tenant.createdAt)}
@@ -168,21 +149,7 @@ export function TenantDetail() {
       {/* Stat cards */}
       <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Tenant metrics">
         {statCards.map(({ title, value, icon: Icon }) => (
-          <Card key={title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {title}
-              </CardTitle>
-              <div className="rounded-md bg-primary/10 p-1.5" aria-hidden>
-                <Icon className="h-3.5 w-3.5 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xl font-semibold tabular-nums tracking-tight text-foreground" aria-label={`${title}: ${value}`}>
-                {value}
-              </p>
-            </CardContent>
-          </Card>
+          <MetricCard key={title} title={title} value={value} icon={Icon} />
         ))}
       </section>
 
@@ -207,7 +174,7 @@ export function TenantDetail() {
                   ["Slug", tenant.slug],
                   ["Contact Email", tenant.contactEmail],
                   ["Plan", tenant.plan ? PLAN_LABELS[tenant.plan] : "None"],
-                  ["Billing Status", STATUS_LABELS[tenant.billingStatus]],
+                  ["Billing Status", <StatusBadge key="bs" variant="billing" status={tenant.billingStatus} />],
                   ["Created", formatDate(tenant.createdAt)],
                 ].map(([label, value]) => (
                   <div key={label}>
@@ -278,7 +245,7 @@ export function TenantDetail() {
               <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                 {[
                   ["Current Plan", tenant.plan ? PLAN_LABELS[tenant.plan] : "None"],
-                  ["Billing Status", STATUS_LABELS[tenant.billingStatus]],
+                  ["Billing Status", <StatusBadge key="bs2" variant="billing" status={tenant.billingStatus} />],
                   ["Monthly Revenue", formatINR(tenant.mrr)],
                   ["Subscription ID", tenant.id + "-sub"],
                 ].map(([label, value]) => (

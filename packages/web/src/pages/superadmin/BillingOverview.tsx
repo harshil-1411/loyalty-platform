@@ -35,6 +35,8 @@ import {
   type PlanDistribution,
   type SubscriptionEvent,
 } from "@/api/superadmin";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { MetricCard } from "@/components/ui/metric-card";
 import { cn } from "@/lib/utils";
 
 const CHART_COLORS = [
@@ -68,22 +70,6 @@ function formatDate(iso: string): string {
     year: "numeric",
   }).format(new Date(iso));
 }
-
-const EVENT_STYLES: Record<string, string> = {
-  created: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  renewed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  cancelled: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  past_due: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  trial_started: "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
-};
-
-const EVENT_LABELS: Record<string, string> = {
-  created: "Created",
-  renewed: "Renewed",
-  cancelled: "Cancelled",
-  past_due: "Past Due",
-  trial_started: "Trial Started",
-};
 
 export function BillingOverview() {
   const [metrics, setMetrics] = useState<PlatformMetrics | null>(null);
@@ -151,19 +137,15 @@ export function BillingOverview() {
       {/* KPIs */}
       <section className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Billing metrics">
         {kpis.map(({ title, value, icon: Icon, change, sub, warn }) => (
-          <Card key={title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</CardTitle>
-              <div className={cn("rounded-md p-2", warn ? "bg-amber-100 dark:bg-amber-900/30" : "bg-primary/10")} aria-hidden>
-                <Icon className={cn("h-4 w-4", warn ? "text-amber-600 dark:text-amber-400" : "text-primary")} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{value}</p>
-              {change && <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{change}</span>}
-              {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-            </CardContent>
-          </Card>
+          <MetricCard
+            key={title}
+            title={title}
+            value={value}
+            icon={Icon}
+            change={change}
+            sub={sub}
+            warn={warn}
+          />
         ))}
       </section>
 
@@ -253,9 +235,7 @@ export function BillingOverview() {
                     <tr key={ev.id} className={cn("border-b border-border last:border-0", idx % 2 === 0 && "bg-muted/30")}>
                       <td className="px-4 py-2.5 font-medium text-foreground">{ev.tenantName}</td>
                       <td className="px-4 py-2.5">
-                        <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[0.6875rem] font-medium leading-tight", EVENT_STYLES[ev.event] ?? "bg-muted text-muted-foreground")}>
-                          {EVENT_LABELS[ev.event] ?? ev.event}
-                        </span>
+                        <StatusBadge variant="event" status={ev.event} />
                       </td>
                       <td className="px-4 py-2.5 capitalize text-foreground">{ev.plan}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums text-foreground">{ev.amount > 0 ? formatINR(ev.amount) : "—"}</td>
@@ -272,9 +252,7 @@ export function BillingOverview() {
                 <div key={ev.id} className="space-y-1.5 px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-sm font-medium text-foreground">{ev.tenantName}</p>
-                    <span className={cn("shrink-0 inline-flex rounded-full px-2 py-0.5 text-[0.6875rem] font-medium leading-tight", EVENT_STYLES[ev.event] ?? "bg-muted text-muted-foreground")}>
-                      {EVENT_LABELS[ev.event] ?? ev.event}
-                    </span>
+                    <StatusBadge variant="event" status={ev.event} className="shrink-0" />
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="capitalize">{ev.plan}</span>

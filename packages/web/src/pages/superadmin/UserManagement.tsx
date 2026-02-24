@@ -1,40 +1,21 @@
 import { useEffect, useState, useMemo } from "react";
-import { Search, Users, X, Shield, UserCheck } from "lucide-react";
+import { Users, Shield, UserCheck } from "lucide-react";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   listUsers,
   listTenants,
   type PlatformUser,
   type Tenant,
-  type UserStatus,
 } from "@/api/superadmin";
+import { Pagination, PAGE_SIZE_DEFAULT } from "@/components/ui/pagination";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { cn } from "@/lib/utils";
-
-/* ---- status helpers ---- */
-const USER_STATUS_STYLES: Record<UserStatus, string> = {
-  confirmed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  unconfirmed: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  disabled: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-};
-
-const USER_STATUS_LABELS: Record<UserStatus, string> = {
-  confirmed: "Confirmed",
-  unconfirmed: "Unconfirmed",
-  disabled: "Disabled",
-};
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return "Never";
@@ -56,6 +37,7 @@ export function UserManagement() {
   const [search, setSearch] = useState("");
   const [tenantFilter, setTenantFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,13 +73,23 @@ export function UserManagement() {
     return result;
   }, [allUsers, search, tenantFilter, roleFilter]);
 
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE_DEFAULT;
+    return filtered.slice(start, start + PAGE_SIZE_DEFAULT);
+  }, [filtered, page]);
+
   const hasFilters = search !== "" || tenantFilter !== "all" || roleFilter !== "all";
 
   function clearFilters() {
     setSearch("");
     setTenantFilter("all");
     setRoleFilter("all");
+    setPage(1);
   }
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, tenantFilter, roleFilter]);
 
   if (loading) {
     return (
@@ -125,46 +117,38 @@ export function UserManagement() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            type="search"
-            placeholder="Search by name, email, or tenant…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-            aria-label="Search users"
-          />
-        </div>
-        <Select value={tenantFilter} onValueChange={setTenantFilter}>
-          <SelectTrigger className="w-[180px]" aria-label="Filter by tenant">
-            <SelectValue placeholder="Tenant" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Tenants</SelectItem>
-            {tenants.map((t) => (
-              <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-[150px]" aria-label="Filter by role">
-            <SelectValue placeholder="Role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="super_admin">Super Admin</SelectItem>
-            <SelectItem value="tenant_admin">Tenant Admin</SelectItem>
-          </SelectContent>
-        </Select>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground">
-            <X className="h-3.5 w-3.5" />
-            Clear
-          </Button>
-        )}
-      </div>
+      <FilterBar
+        className="mb-6"
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search by name, email, or tenant…"
+        searchAriaLabel="Search users"
+        hasFilters={hasFilters}
+        onClear={clearFilters}
+        selects={[
+          {
+            value: tenantFilter,
+            onValueChange: setTenantFilter,
+            "aria-label": "Filter by tenant",
+            triggerClassName: "w-[180px]",
+            options: [
+              { value: "all", label: "All Tenants" },
+              ...tenants.map((t) => ({ value: t.id, label: t.name })),
+            ],
+          },
+          {
+            value: roleFilter,
+            onValueChange: setRoleFilter,
+            "aria-label": "Filter by role",
+            triggerClassName: "w-[150px]",
+            options: [
+              { value: "all", label: "All Roles" },
+              { value: "super_admin", label: "Super Admin" },
+              { value: "tenant_admin", label: "Tenant Admin" },
+            ],
+          },
+        ]}
+      />
 
       {/* Results */}
       {filtered.length === 0 ? (
@@ -183,18 +167,19 @@ export function UserManagement() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {/* Desktop header */}
-          <div className="hidden rounded-md border border-border bg-muted/50 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground lg:grid lg:grid-cols-[1.5fr_2fr_1.5fr_1fr_1fr_1fr]">
-            <span>Username</span>
-            <span>Email</span>
-            <span>Tenant</span>
-            <span>Role</span>
-            <span>Status</span>
-            <span className="text-right">Last Sign-in</span>
-          </div>
+        <>
+          <div className="space-y-2">
+            {/* Desktop header */}
+            <div className="hidden rounded-md border border-border bg-muted/50 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground lg:grid lg:grid-cols-[1.5fr_2fr_1.5fr_1fr_1fr_1fr]">
+              <span>Username</span>
+              <span>Email</span>
+              <span>Tenant</span>
+              <span>Role</span>
+              <span>Status</span>
+              <span className="text-right">Last Sign-in</span>
+            </div>
 
-          {filtered.map((user) => (
+            {paginated.map((user) => (
             <div
               key={user.id}
               className="rounded-lg border border-border bg-card"
@@ -220,9 +205,7 @@ export function UserManagement() {
                   )}
                 </span>
                 <span>
-                  <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[0.6875rem] font-medium leading-tight", USER_STATUS_STYLES[user.status])}>
-                    {USER_STATUS_LABELS[user.status]}
-                  </span>
+                  <StatusBadge variant="user" status={user.status} />
                 </span>
                 <span className="text-right text-sm text-muted-foreground">
                   {formatDateTime(user.lastSignIn)}
@@ -239,9 +222,7 @@ export function UserManagement() {
                     </p>
                     <p className="truncate text-xs text-muted-foreground">{user.email}</p>
                   </div>
-                  <span className={cn("shrink-0 inline-flex rounded-full px-2 py-0.5 text-[0.6875rem] font-medium leading-tight", USER_STATUS_STYLES[user.status])}>
-                    {USER_STATUS_LABELS[user.status]}
-                  </span>
+                  <StatusBadge variant="user" status={user.status} className="shrink-0" />
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{user.tenantName}</span>
@@ -250,8 +231,17 @@ export function UserManagement() {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+          <Pagination
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE_DEFAULT}
+            page={page}
+            onPageChange={setPage}
+            className="mt-4"
+            aria-label="User list pagination"
+          />
+        </>
       )}
     </div>
   );

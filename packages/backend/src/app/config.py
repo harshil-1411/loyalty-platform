@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     cognito_user_pool_id: str = ""
+    super_admin_bypass: bool = False  # When True, allow super-admin routes without group check (dev only)
 
     def get_cors_origins_list(self) -> list[str]:
         if not self.cors_origins or self.cors_origins == "*":

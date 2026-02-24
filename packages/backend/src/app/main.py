@@ -23,7 +23,7 @@ from app.exceptions import (
     ConflictError,
 )
 from app.logging_config import configure_logging
-from app.routers import hello, programs, transactions, rewards, billing, webhooks, me
+from app.routers import hello, programs, transactions, rewards, billing, webhooks, me, superadmin
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -59,6 +59,9 @@ async def _set_tenant_from_authorizer(request: Request, call_next):
             user_sub = authorizer.get("sub") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("sub"))
             if user_sub:
                 request.state.user_sub = user_sub if isinstance(user_sub, str) else str(user_sub)
+            groups = authorizer.get("cognito_groups") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("cognito_groups"))
+            if groups is not None:
+                request.state.cognito_groups = groups if isinstance(groups, list) else list(groups) if groups else []
         except Exception:  # noqa: BLE001
             pass
     return await call_next(request)
@@ -178,6 +181,7 @@ app.include_router(rewards.router, prefix=settings.api_base_path)
 app.include_router(billing.router, prefix=settings.api_base_path)
 app.include_router(webhooks.router, prefix=settings.api_base_path)
 app.include_router(me.router, prefix=settings.api_base_path)
+app.include_router(superadmin.router, prefix=settings.api_base_path)
 
 
 def get_mangum_handler():

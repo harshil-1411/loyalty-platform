@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   AreaChart,
   Area,
@@ -22,7 +21,6 @@ import {
   TrendingUp,
   TrendingDown,
   Users,
-  ArrowUpRight,
   IndianRupee,
   Activity,
 } from "lucide-react";
@@ -32,6 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getPlatformMetrics,
@@ -200,49 +199,18 @@ export function PlatformDashboard() {
         aria-label="Key platform metrics"
       >
         {kpis.map(({ title, value, sub, change, positive, negative, icon: Icon, to, linkLabel }) => (
-          <Card key={title} className="relative">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {title}
-              </CardTitle>
-              <div className="rounded-md bg-primary/10 p-2" aria-hidden>
-                <Icon className="h-4 w-4 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <p
-                  className="text-2xl font-semibold tabular-nums tracking-tight text-foreground"
-                  aria-label={`${title}: ${value}`}
-                >
-                  {value}
-                </p>
-                {change && (
-                  <span
-                    className={
-                      positive
-                        ? "text-xs font-medium text-emerald-600 dark:text-emerald-400"
-                        : "text-xs font-medium text-destructive"
-                    }
-                  >
-                    {change}
-                  </span>
-                )}
-              </div>
-              {sub && (
-                <p className={`mt-0.5 text-xs ${negative ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
-                  {sub}
-                </p>
-              )}
-              <Link
-                to={to}
-                className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
-              >
-                {linkLabel}
-                <ArrowUpRight className="h-3 w-3" aria-hidden />
-              </Link>
-            </CardContent>
-          </Card>
+          <MetricCard
+            key={title}
+            title={title}
+            value={value}
+            icon={Icon}
+            sub={sub}
+            change={change}
+            positive={positive}
+            negative={negative}
+            to={to}
+            linkLabel={linkLabel}
+          />
         ))}
       </section>
 
