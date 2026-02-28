@@ -58,10 +58,17 @@ def handler(event: dict, context: object) -> dict:
         return {"isAuthorized": False}
 
     sub = payload.get("sub") or ""
+    # cognito:username is the actual pool username (needed for admin API calls)
+    cognito_username = payload.get("cognito:username") or sub
+    # cognito:groups is a list — API GW context only allows scalars, so join as CSV
+    groups = payload.get("cognito:groups") or []
+    groups_str = ",".join(groups) if isinstance(groups, list) else ""
     return {
         "isAuthorized": True,
         "context": {
             "tenantId": tenant_id.strip(),
             "sub": sub if isinstance(sub, str) else str(sub),
+            "cognito_username": cognito_username if isinstance(cognito_username, str) else str(cognito_username),
+            "cognito_groups": groups_str,
         },
     }

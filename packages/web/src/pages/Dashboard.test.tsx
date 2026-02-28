@@ -8,7 +8,7 @@ vi.mock("@/auth/useAuth");
 describe("Dashboard", () => {
   beforeEach(() => {
     vi.mocked(useAuth).mockReturnValue({
-      state: { status: "authenticated", user: { sub: "1", email: "u@e.com", username: "u" } },
+      state: { status: "authenticated", user: { sub: "1", email: "u@e.com", username: "u", role: "tenant_admin" } },
       signIn: vi.fn(),
       signOut: vi.fn(),
       signUp: vi.fn(),
@@ -39,7 +39,7 @@ describe("Dashboard", () => {
 
   it("shows username when email is missing (edge)", () => {
     vi.mocked(useAuth).mockReturnValue({
-      state: { status: "authenticated", user: { sub: "1", email: undefined, username: "john" } },
+      state: { status: "authenticated", user: { sub: "1", email: undefined, username: "john", role: "tenant_admin" } },
       signIn: vi.fn(),
       signOut: vi.fn(),
       signUp: vi.fn(),

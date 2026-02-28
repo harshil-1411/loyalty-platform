@@ -3,6 +3,9 @@
  * Used by useDashboardMetrics; mock this in tests.
  */
 
+import { listPrograms } from './programs'
+import { listTransactions } from './transactions'
+
 export interface DashboardMetrics {
   totalPoints: number
   activePrograms: number
@@ -25,38 +28,54 @@ export interface DashboardData {
   charts: DashboardChartData
 }
 
-const stubData: DashboardData = {
-  metrics: {
-    totalPoints: 125_000,
-    activePrograms: 3,
-    transactionsCount: 1_420,
-    rewardsRedeemed: 89,
-  },
-  charts: {
-    pointsByProgram: [
-      { name: 'Loyalty Plus', value: 52000 },
-      { name: 'Rewards Gold', value: 48000 },
-      { name: 'Cashback', value: 25000 },
-    ],
-    transactionsOverTime: [
-      { name: 'Mon', value: 210 },
-      { name: 'Tue', value: 185 },
-      { name: 'Wed', value: 240 },
-      { name: 'Thu', value: 198 },
-      { name: 'Fri', value: 265 },
-      { name: 'Sat', value: 182 },
-      { name: 'Sun', value: 140 },
-    ],
-  },
-}
-
 /**
- * Fetches dashboard data for the given tenant.
- * In production this would call the backend API.
+ * Fetches real dashboard data for the given tenant by aggregating programs
+ * and their transactions. The idToken is the Cognito idToken for auth.
  */
-export async function getDashboardData(tenantId: string): Promise<DashboardData> {
-  // Simulate network delay; in production would use tenantId for API call
-  void tenantId
-  await new Promise((r) => setTimeout(r, 0))
-  return stubData
+export async function getDashboardData(
+  tenantId: string,
+  idToken?: string | null
+): Promise<DashboardData> {
+  const { programs } = await listPrograms(tenantId, idToken ?? undefined)
+  const activePrograms = programs.length
+
+  let totalPoints = 0
+  let transactionsCount = 0
+  let rewardsRedeemed = 0
+  const pointsByProgram: ChartDataPoint[] = []
+
+  await Promise.all(
+    programs.map(async (prog) => {
+      const res = await listTransactions(
+        tenantId,
+        prog.programId,
+        { limit: 100 },
+        idToken ?? undefined
+      )
+      const txs = res.transactions ?? []
+      let progPoints = 0
+      for (const tx of txs) {
+        transactionsCount += 1
+        if (tx.type === 'earn') {
+          progPoints += tx.points ?? 0
+        } else if (tx.type === 'redemption') {
+          rewardsRedeemed += 1
+        }
+      }
+      totalPoints += progPoints
+      pointsByProgram.push({ name: prog.name, value: progPoints })
+    })
+  )
+
+  // Last-7-days bar chart from transactions (best-effort without date index)
+  const transactionsOverTime: ChartDataPoint[] = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return { name: d.toLocaleDateString('en-IN', { weekday: 'short' }), value: 0 }
+  })
+
+  return {
+    metrics: { totalPoints, activePrograms, transactionsCount, rewardsRedeemed },
+    charts: { pointsByProgram, transactionsOverTime },
+  }
 }

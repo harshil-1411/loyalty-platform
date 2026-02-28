@@ -78,6 +78,11 @@ export function Login() {
                 className="transition-colors"
               />
             </div>
+            <div className="flex justify-end">
+              <Button variant="link" asChild className="h-auto p-0 text-sm text-muted-foreground">
+                <Link to="/forgot-password">Forgot password?</Link>
+              </Button>
+            </div>
             {error && (
               <p className="text-sm text-destructive" role="alert">
                 {error}

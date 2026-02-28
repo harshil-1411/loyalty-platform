@@ -77,11 +77,11 @@ describe("TenantList", () => {
   it("renders tenant rows with names and links to detail (positive)", async () => {
     renderTenantList();
     await waitFor(() => {
-      expect(screen.getAllByRole("link", { href: "/admin/tenants/t-001" }).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByRole("link").filter(el => el.getAttribute("href")?.includes("/admin/tenants/t-001")).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText("GlowUp Salon").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("FreshBasket Retail").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByRole("link", { href: "/admin/tenants/t-002" }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole("link").filter(el => el.getAttribute("href")?.includes("/admin/tenants/t-002")).length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows empty state when filters match no tenants (positive)", async () => {

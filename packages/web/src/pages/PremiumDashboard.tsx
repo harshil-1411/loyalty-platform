@@ -32,7 +32,7 @@ import {
 
 export function PremiumDashboard() {
   const { state } = useAuth();
-  const tenantId = state.status === "authenticated" ? state.user.sub : "";
+  const tenantId = state.status === "authenticated" ? state.user.custom_tenant_id || state.user.sub : "";
   const { data, loading, error, refetch } = useDashboardMetrics(tenantId);
 
   if (state.status !== "authenticated") return null;

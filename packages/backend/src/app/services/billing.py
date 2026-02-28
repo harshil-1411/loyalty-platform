@@ -2,10 +2,9 @@
 
 import base64
 import json
-import os
 import urllib.request
 from app.db import get_table, key
-from app.secrets import get_razorpay_key_id, get_razorpay_key_secret
+from app.secrets import get_razorpay_key_id, get_razorpay_key_secret, get_razorpay_plan_id
 
 
 def _table():
@@ -21,20 +20,6 @@ def get_billing_status(tenant_id: str) -> dict:
         "billingStatus": item.get("billingStatus", "none"),
         "currentPeriodEnd": item.get("currentPeriodEnd"),
     }
-
-
-RAZORPAY_PLANS = {"starter": "", "growth": "", "scale": ""}
-
-
-def get_razorpay_plan_id(plan_key: str) -> str | None:
-    pid = os.environ.get("RAZORPAY_PLAN_STARTER") or os.environ.get("RAZORPAY_PLAN_GROWTH") or os.environ.get("RAZORPAY_PLAN_SCALE")
-    if plan_key.lower() == "starter":
-        return os.environ.get("RAZORPAY_PLAN_STARTER") or pid
-    if plan_key.lower() == "growth":
-        return os.environ.get("RAZORPAY_PLAN_GROWTH") or pid
-    if plan_key.lower() == "scale":
-        return os.environ.get("RAZORPAY_PLAN_SCALE") or pid
-    return None
 
 
 def create_subscription_link(tenant_id: str, plan_key: str, email: str | None = None) -> dict:

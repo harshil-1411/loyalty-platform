@@ -1,17 +1,29 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Building2, ArrowUpRight } from "lucide-react";
+import { Building2, ArrowUpRight, Plus, X } from "lucide-react";
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listTenants, type Tenant, type PlanKey } from "@/api/superadmin";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { listTenants, createTenant, type Tenant, type PlanKey } from "@/api/superadmin";
 import { Pagination, PAGE_SIZE_DEFAULT } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { DataTable } from "@/components/ui/data-table";
+import { toast } from "sonner";
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   starter: "Starter",
@@ -27,9 +39,23 @@ function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
+function slugify(name: string): string {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+}
+
+const BLANK_FORM = { name: "", slug: "", contactEmail: "", planId: "none", adminEmail: "", adminUsername: "" };
+
 export function TenantList() {
   const [allTenants, setAllTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
+
+  /* ── Create form ── */
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState(BLANK_FORM);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   /* ── Filters ── */
   const [search, setSearch] = useState("");
@@ -39,14 +65,21 @@ export function TenantList() {
 
   useEffect(() => {
     let cancelled = false;
-    listTenants().then((data) => {
-      if (!cancelled) {
-        setAllTenants(data);
-        setLoading(false);
-      }
-    });
+    listTenants()
+      .then((data) => {
+        if (!cancelled) {
+          setAllTenants(data);
+          setLoading(false);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load tenants");
+          setLoading(false);
+        }
+      });
     return () => { cancelled = true; };
-  }, []);
+  }, [retryKey]);
 
   const filtered = useMemo(() => {
     let result = allTenants;
@@ -79,10 +112,68 @@ export function TenantList() {
     setPage(1);
   }
 
+  function updateField(field: keyof typeof BLANK_FORM, value: string) {
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // Auto-slug from name if slug wasn't manually edited
+      if (field === "name" && slugify(prev.name) === prev.slug) {
+        next.slug = slugify(value);
+      }
+      return next;
+    });
+  }
+
+  async function submitCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name || !form.slug || !form.contactEmail) return;
+    setCreating(true);
+    setCreateError("");
+    try {
+      await createTenant({
+        name:          form.name,
+        slug:          form.slug,
+        contactEmail:  form.contactEmail,
+        planId:        form.planId !== "none" ? form.planId : null,
+        adminEmail:    form.adminEmail || null,
+        adminUsername: form.adminUsername || null,
+      });
+      toast.success(`Tenant "${form.name}" created successfully.`);
+      setForm(BLANK_FORM);
+      setShowCreate(false);
+      setRetryKey((k) => k + 1);  // Refresh list
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create tenant");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
   }, [search, planFilter, statusFilter]);
+
+  /* ── Error ── */
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Tenants</h1>
+        <div className="mt-6 rounded-lg border border-border bg-card p-6" role="alert">
+          <p className="font-medium text-foreground">Failed to load tenants.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => { setError(""); setLoading(true); setRetryKey((k) => k + 1); }}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   /* ── Loading ── */
   if (loading) {
@@ -104,14 +195,84 @@ export function TenantList() {
   return (
     <div aria-labelledby="tenants-heading">
       {/* Header */}
-      <div className="mb-6">
-        <h1 id="tenants-heading" className="text-xl font-semibold tracking-tight text-foreground">
-          Tenants
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {allTenants.length} registered {allTenants.length === 1 ? "tenant" : "tenants"} on the platform.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 id="tenants-heading" className="text-xl font-semibold tracking-tight text-foreground">
+            Tenants
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {allTenants.length} registered {allTenants.length === 1 ? "tenant" : "tenants"} on the platform.
+          </p>
+        </div>
+        <Button size="sm" className="shrink-0" onClick={() => { setShowCreate((v) => !v); setCreateError(""); }}>
+          {showCreate ? <X className="mr-1.5 h-3.5 w-3.5" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+          {showCreate ? "Cancel" : "Create Tenant"}
+        </Button>
       </div>
+
+      {/* ── Create Tenant form ── */}
+      {showCreate && (
+        <Card className="mb-6 border-primary/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">New Tenant</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={submitCreate} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ct-name">Name *</Label>
+                  <Input id="ct-name" placeholder="Acme Corp" value={form.name}
+                    onChange={(e) => updateField("name", e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ct-slug">Slug * <span className="text-xs text-muted-foreground">(used as tenant ID)</span></Label>
+                  <Input id="ct-slug" placeholder="acme-corp" value={form.slug}
+                    onChange={(e) => updateField("slug", e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ct-email">Contact Email *</Label>
+                  <Input id="ct-email" type="email" placeholder="admin@acme.in" value={form.contactEmail}
+                    onChange={(e) => updateField("contactEmail", e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Plan</Label>
+                  <Select value={form.planId} onValueChange={(v) => updateField("planId", v)}>
+                    <SelectTrigger><SelectValue placeholder="No Plan" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Plan</SelectItem>
+                      <SelectItem value="starter">Starter</SelectItem>
+                      <SelectItem value="growth">Growth</SelectItem>
+                      <SelectItem value="scale">Scale</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ct-admin-email">Admin Email <span className="text-xs text-muted-foreground">(optional — creates Cognito user)</span></Label>
+                  <Input id="ct-admin-email" type="email" placeholder="user@acme.in" value={form.adminEmail}
+                    onChange={(e) => updateField("adminEmail", e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ct-admin-user">Admin Username <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <Input id="ct-admin-user" placeholder="acme.admin" value={form.adminUsername}
+                    onChange={(e) => updateField("adminUsername", e.target.value)} />
+                </div>
+              </div>
+              {createError && (
+                <p className="text-sm text-destructive" role="alert">{createError}</p>
+              )}
+              <div className="flex items-center gap-2 pt-1">
+                <Button type="submit" size="sm" disabled={creating || !form.name || !form.slug || !form.contactEmail}>
+                  {creating ? "Creating…" : "Create Tenant"}
+                </Button>
+                <Button type="button" size="sm" variant="ghost"
+                  onClick={() => { setShowCreate(false); setForm(BLANK_FORM); setCreateError(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <FilterBar

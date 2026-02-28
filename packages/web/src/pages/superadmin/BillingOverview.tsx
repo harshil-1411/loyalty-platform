@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   TrendingUp,
   Activity,
+  Download,
 } from "lucide-react";
 import {
   Card,
@@ -24,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getPlatformMetrics,
@@ -77,27 +79,78 @@ export function BillingOverview() {
   const [plans, setPlans] = useState<PlanDistribution[]>([]);
   const [events, setEvents] = useState<SubscriptionEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [m, r, p, e] = await Promise.all([
-        getPlatformMetrics(),
-        getRevenueTrendSeries(),
-        getPlanDistribution(),
-        getSubscriptionEvents(),
-      ]);
-      if (!cancelled) {
-        setMetrics(m);
-        setRevenue(r);
-        setPlans(p);
-        setEvents(e);
-        setLoading(false);
+      try {
+        const [m, r, p, e] = await Promise.all([
+          getPlatformMetrics(),
+          getRevenueTrendSeries(),
+          getPlanDistribution(),
+          getSubscriptionEvents(),
+        ]);
+        if (!cancelled) {
+          setMetrics(m);
+          setRevenue(r);
+          setPlans(p);
+          setEvents(e);
+          setLoading(false);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load billing data");
+          setLoading(false);
+        }
       }
     }
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [retryKey]);
+
+  function exportCSV() {
+    const header = ["Tenant", "Event", "Plan", "Amount (INR)", "Date"]
+    const rows = events.map((ev) => [
+      ev.tenantName,
+      ev.event,
+      ev.plan,
+      String(ev.amount),
+      ev.date,
+    ])
+    const csv = [header, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "subscription-events.csv"
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Billing Overview</h1>
+        <div className="mt-6 rounded-lg border border-border bg-card p-6" role="alert">
+          <p className="font-medium text-foreground">Failed to load billing data.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => { setError(""); setLoading(true); setRetryKey((k) => k + 1); }}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !metrics) {
     return (
@@ -213,9 +266,17 @@ export function BillingOverview() {
 
       {/* Recent subscription events */}
       <section aria-labelledby="events-heading">
-        <h2 id="events-heading" className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent Subscription Events
-        </h2>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 id="events-heading" className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recent Subscription Events
+          </h2>
+          {events.length > 0 && (
+            <Button variant="outline" size="sm" onClick={exportCSV} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              Export CSV
+            </Button>
+          )}
+        </div>
         <Card>
           <CardContent className="p-0">
             {/* Desktop table */}

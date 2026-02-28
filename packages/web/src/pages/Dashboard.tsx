@@ -30,7 +30,7 @@ export function Dashboard() {
   const [chartData, setChartData] = useState<{ name: string; value: number }[] | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const tenantId = state.status === "authenticated" ? state.user.sub : "";
+  const tenantId = state.status === "authenticated" ? state.user.custom_tenant_id || state.user.sub : "";
   const tenantContext = state.status === "authenticated"
     ? (state.user.email ?? state.user.username ?? "")
     : "";

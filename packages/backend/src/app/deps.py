@@ -27,6 +27,15 @@ async def get_user_sub(request: Request) -> str:
     return sub
 
 
+async def get_cognito_username(request: Request) -> str:
+    """Cognito pool username for Cognito admin API calls (e.g. AdminUpdateUserAttributes).
+    Falls back to user_sub when cognito_username is not in authorizer context."""
+    username = getattr(request.state, "cognito_username", None) or ""
+    if username:
+        return username
+    return await get_user_sub(request)
+
+
 async def require_super_admin(request: Request) -> str:
     """Verify caller is in the super_admin Cognito group. Returns user sub. In dev, SUPER_ADMIN_BYPASS=true skips check."""
     if settings.super_admin_bypass:

@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   listPricingPlans,
@@ -19,20 +20,50 @@ export function PricingPlans() {
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [distribution, setDistribution] = useState<PlanDistribution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [p, d] = await Promise.all([listPricingPlans(), getPlanDistribution()]);
-      if (!cancelled) {
-        setPlans(p);
-        setDistribution(d);
-        setLoading(false);
+      try {
+        const [p, d] = await Promise.all([listPricingPlans(), getPlanDistribution()]);
+        if (!cancelled) {
+          setPlans(p);
+          setDistribution(d);
+          setLoading(false);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load pricing plans");
+          setLoading(false);
+        }
       }
     }
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [retryKey]);
+
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Pricing Plans</h1>
+        <div className="mt-6 rounded-lg border border-border bg-card p-6" role="alert">
+          <p className="font-medium text-foreground">Failed to load pricing plans.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => { setError(""); setLoading(true); setRetryKey((k) => k + 1); }}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

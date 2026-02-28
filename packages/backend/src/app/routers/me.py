@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.deps import get_tenant_id, get_user_sub
+from app.deps import get_tenant_id, get_cognito_username
 from app.exceptions import BadRequestError
 
 router = APIRouter(prefix="/me", tags=["Me"])
@@ -17,7 +17,7 @@ class SetTenantBody(BaseModel):
 def set_my_tenant(
     body: SetTenantBody,
     _tenant_id: str = Depends(get_tenant_id),
-    user_sub: str = Depends(get_user_sub),
+    cognito_username: str = Depends(get_cognito_username),
 ) -> dict:
     """Set the current user's Cognito custom:tenant_id. Requires backend USER_POOL_ID and Cognito permissions."""
     new_tenant = (body.tenantId or "").strip()
@@ -31,7 +31,7 @@ def set_my_tenant(
         client = boto3.client("cognito-idp")
         client.admin_update_user_attributes(
             UserPoolId=pool_id,
-            Username=user_sub,
+            Username=cognito_username,
             UserAttributes=[{"Name": "custom:tenant_id", "Value": new_tenant}],
         )
     except Exception as e:

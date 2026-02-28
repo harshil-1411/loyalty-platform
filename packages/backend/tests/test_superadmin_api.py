@@ -364,3 +364,223 @@ def test_admin_users(client_with_table: TestClient, table_name: str):
         assert isinstance(data["users"], list)
     finally:
         app.dependency_overrides.pop(require_super_admin, None)
+
+
+# ── New metric series endpoints ──────────────────────────────────────────────
+
+
+@mock_aws
+def test_admin_tenant_growth_returns_12_months(client_with_table: TestClient, table_name: str):
+    """GET /admin/metrics/tenant-growth returns 200 with 12 monthly data points."""
+    import boto3
+    from app.main import app
+    from app.deps import require_super_admin
+
+    client = boto3.client("dynamodb", region_name="us-east-1")
+    client.create_table(
+        TableName=table_name,
+        KeySchema=[
+            {"AttributeName": "pk", "KeyType": "HASH"},
+            {"AttributeName": "sk", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "pk", "AttributeType": "S"},
+            {"AttributeName": "sk", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    resource = boto3.resource("dynamodb", region_name="us-east-1")
+    table = resource.Table(table_name)
+    table.put_item(Item={
+        "pk": "TENANT#t-growth-1",
+        "sk": "TENANT",
+        "name": "Growth Tenant",
+        "createdAt": "2025-01-15T00:00:00Z",
+    })
+    app.dependency_overrides[require_super_admin] = _fake_super_admin
+    try:
+        response = client_with_table.get("/api/v1/admin/metrics/tenant-growth")
+        assert response.status_code == 200
+        data = response.json()
+        assert "points" in data
+        assert len(data["points"]) == 12
+        for point in data["points"]:
+            assert "month" in point
+            assert "value" in point
+            assert isinstance(point["value"], (int, float))
+    finally:
+        app.dependency_overrides.pop(require_super_admin, None)
+
+
+@mock_aws
+def test_admin_revenue_trend_returns_12_months(client_with_table: TestClient, table_name: str):
+    """GET /admin/metrics/revenue-trend returns 200 with 12 monthly MRR points."""
+    import boto3
+    from app.main import app
+    from app.deps import require_super_admin
+
+    client = boto3.client("dynamodb", region_name="us-east-1")
+    client.create_table(
+        TableName=table_name,
+        KeySchema=[
+            {"AttributeName": "pk", "KeyType": "HASH"},
+            {"AttributeName": "sk", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "pk", "AttributeType": "S"},
+            {"AttributeName": "sk", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    resource = boto3.resource("dynamodb", region_name="us-east-1")
+    table = resource.Table(table_name)
+    table.put_item(Item={
+        "pk": "TENANT#t-rev-1",
+        "sk": "TENANT",
+        "name": "Revenue Tenant",
+        "planId": "starter",
+        "billingStatus": "active",
+        "mrr": 999,
+        "createdAt": "2025-01-01T00:00:00Z",
+    })
+    app.dependency_overrides[require_super_admin] = _fake_super_admin
+    try:
+        response = client_with_table.get("/api/v1/admin/metrics/revenue-trend")
+        assert response.status_code == 200
+        data = response.json()
+        assert "points" in data
+        assert len(data["points"]) == 12
+        for point in data["points"]:
+            assert "month" in point
+            assert "value" in point
+        # At least one point should have MRR > 0 since tenant was created in 2025-01
+        values = [p["value"] for p in data["points"]]
+        assert any(v > 0 for v in values)
+    finally:
+        app.dependency_overrides.pop(require_super_admin, None)
+
+
+# ── Missing mutation tests ────────────────────────────────────────────────────
+
+
+@mock_aws
+def test_admin_patch_tenant_plan(client_with_table: TestClient, table_name: str):
+    """PATCH /admin/tenants/{id}/plan updates the tenant's plan."""
+    import boto3
+    from app.main import app
+    from app.deps import require_super_admin
+
+    client = boto3.client("dynamodb", region_name="us-east-1")
+    client.create_table(
+        TableName=table_name,
+        KeySchema=[
+            {"AttributeName": "pk", "KeyType": "HASH"},
+            {"AttributeName": "sk", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "pk", "AttributeType": "S"},
+            {"AttributeName": "sk", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    resource = boto3.resource("dynamodb", region_name="us-east-1")
+    table = resource.Table(table_name)
+    table.put_item(Item={"pk": "TENANT#t-plan", "sk": "TENANT", "name": "Plan Tenant", "planId": "starter"})
+
+    app.dependency_overrides[require_super_admin] = _fake_super_admin
+    try:
+        response = client_with_table.patch(
+            "/api/v1/admin/tenants/t-plan/plan",
+            json={"plan": "growth"},
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        # Verify DynamoDB was updated
+        item = table.get_item(Key={"pk": "TENANT#t-plan", "sk": "TENANT"})["Item"]
+        assert item["planId"] == "growth"
+    finally:
+        app.dependency_overrides.pop(require_super_admin, None)
+
+
+@mock_aws
+def test_admin_patch_tenant_status(client_with_table: TestClient, table_name: str):
+    """PATCH /admin/tenants/{id}/status updates the tenant's billing status."""
+    import boto3
+    from app.main import app
+    from app.deps import require_super_admin
+
+    client = boto3.client("dynamodb", region_name="us-east-1")
+    client.create_table(
+        TableName=table_name,
+        KeySchema=[
+            {"AttributeName": "pk", "KeyType": "HASH"},
+            {"AttributeName": "sk", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "pk", "AttributeType": "S"},
+            {"AttributeName": "sk", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    resource = boto3.resource("dynamodb", region_name="us-east-1")
+    table = resource.Table(table_name)
+    table.put_item(Item={"pk": "TENANT#t-status", "sk": "TENANT", "name": "Status Tenant", "billingStatus": "active"})
+
+    app.dependency_overrides[require_super_admin] = _fake_super_admin
+    try:
+        response = client_with_table.patch(
+            "/api/v1/admin/tenants/t-status/status",
+            json={"status": "cancelled"},
+        )
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+        item = table.get_item(Key={"pk": "TENANT#t-status", "sk": "TENANT"})["Item"]
+        assert item["billingStatus"] == "cancelled"
+    finally:
+        app.dependency_overrides.pop(require_super_admin, None)
+
+
+@mock_aws
+def test_admin_disable_enable_reset_user(client_with_table: TestClient, table_name: str):
+    """POST /admin/users/{u}/disable|enable|reset-password each return 200 with Cognito mocked."""
+    import boto3
+    from unittest.mock import patch, MagicMock
+    from app.main import app
+    from app.deps import require_super_admin
+
+    boto3.client("dynamodb", region_name="us-east-1").create_table(
+        TableName=table_name,
+        KeySchema=[
+            {"AttributeName": "pk", "KeyType": "HASH"},
+            {"AttributeName": "sk", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "pk", "AttributeType": "S"},
+            {"AttributeName": "sk", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    mock_cognito = MagicMock()
+    mock_cognito.admin_disable_user.return_value = {}
+    mock_cognito.admin_enable_user.return_value = {}
+    mock_cognito.admin_reset_user_password.return_value = {}
+
+    app.dependency_overrides[require_super_admin] = _fake_super_admin
+    try:
+        with patch("app.services.superadmin.boto3.client", return_value=mock_cognito):
+            # disable
+            r = client_with_table.post("/api/v1/admin/users/user-x/disable")
+            assert r.status_code == 200
+            assert r.json()["success"] is True
+
+            # enable
+            r = client_with_table.post("/api/v1/admin/users/user-x/enable")
+            assert r.status_code == 200
+            assert r.json()["success"] is True
+
+            # reset-password
+            r = client_with_table.post("/api/v1/admin/users/user-x/reset-password")
+            assert r.status_code == 200
+            assert r.json()["success"] is True
+    finally:
+        app.dependency_overrides.pop(require_super_admin, None)

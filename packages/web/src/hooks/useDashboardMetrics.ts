@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DashboardData } from '@/api/dashboard'
 import { getDashboardData } from '@/api/dashboard'
+import { getIdToken } from '@/auth/cognito'
 
 export interface UseDashboardMetricsResult {
   data: DashboardData | null
@@ -23,7 +24,8 @@ export function useDashboardMetrics(tenantId: string): UseDashboardMetricsResult
     setLoading(true)
     setError(null)
     try {
-      const result = await getDashboardData(tenantId)
+      const idToken = await getIdToken()
+      const result = await getDashboardData(tenantId, idToken)
       setData(result)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load dashboard')

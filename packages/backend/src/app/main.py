@@ -59,9 +59,18 @@ async def _set_tenant_from_authorizer(request: Request, call_next):
             user_sub = authorizer.get("sub") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("sub"))
             if user_sub:
                 request.state.user_sub = user_sub if isinstance(user_sub, str) else str(user_sub)
-            groups = authorizer.get("cognito_groups") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("cognito_groups"))
-            if groups is not None:
-                request.state.cognito_groups = groups if isinstance(groups, list) else list(groups) if groups else []
+            cognito_username = authorizer.get("cognito_username") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("cognito_username"))
+            if cognito_username:
+                request.state.cognito_username = cognito_username if isinstance(cognito_username, str) else str(cognito_username)
+            groups_raw = authorizer.get("cognito_groups") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("cognito_groups"))
+            if groups_raw is not None:
+                # Authorizer sends groups as comma-separated string (API GW context only allows scalars)
+                if isinstance(groups_raw, str):
+                    request.state.cognito_groups = [g for g in groups_raw.split(",") if g]
+                elif isinstance(groups_raw, list):
+                    request.state.cognito_groups = groups_raw
+                else:
+                    request.state.cognito_groups = []
         except Exception:  # noqa: BLE001
             pass
     return await call_next(request)
@@ -111,7 +120,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins_list(),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 app.middleware("http")(add_request_id)

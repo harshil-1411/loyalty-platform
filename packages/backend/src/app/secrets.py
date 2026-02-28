@@ -59,3 +59,42 @@ def get_razorpay_key_id() -> str:
 
 def get_razorpay_key_secret() -> str:
     return _cached_key_secret()
+
+
+@lru_cache(maxsize=1)
+def _cached_plan_starter() -> str:
+    v = os.environ.get("RAZORPAY_PLAN_STARTER", "").strip()
+    if v:
+        return v
+    param_name = os.environ.get("RAZORPAY_PLAN_STARTER_PARAM", "").strip()
+    return _get_ssm_param(param_name) if param_name else ""
+
+
+@lru_cache(maxsize=1)
+def _cached_plan_growth() -> str:
+    v = os.environ.get("RAZORPAY_PLAN_GROWTH", "").strip()
+    if v:
+        return v
+    param_name = os.environ.get("RAZORPAY_PLAN_GROWTH_PARAM", "").strip()
+    return _get_ssm_param(param_name) if param_name else ""
+
+
+@lru_cache(maxsize=1)
+def _cached_plan_scale() -> str:
+    v = os.environ.get("RAZORPAY_PLAN_SCALE", "").strip()
+    if v:
+        return v
+    param_name = os.environ.get("RAZORPAY_PLAN_SCALE_PARAM", "").strip()
+    return _get_ssm_param(param_name) if param_name else ""
+
+
+def get_razorpay_plan_id(plan_key: str) -> str:
+    """Return Razorpay plan ID for the given plan key (starter|growth|scale)."""
+    key = plan_key.lower()
+    if key == "starter":
+        return _cached_plan_starter()
+    if key == "growth":
+        return _cached_plan_growth()
+    if key == "scale":
+        return _cached_plan_scale()
+    return ""

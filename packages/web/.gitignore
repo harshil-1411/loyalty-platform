@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Playwright auth state (contains session tokens)
+playwright/.auth/user.json
+
+# E2E credentials
+.env.e2e

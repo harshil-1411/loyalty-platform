@@ -104,3 +104,48 @@ class UserListResponse(BaseModel):
 class TimeSeriesPoint(BaseModel):
     month: str
     value: int | float
+
+
+class TimeSeriesResponse(BaseModel):
+    points: list[TimeSeriesPoint]
+
+
+class AuditLogEntryResponse(BaseModel):
+    id: str
+    action: str
+    actor: str
+    targetId: str
+    targetName: str
+    details: str  # JSON-encoded details string
+    createdAt: str
+
+
+class AuditLogResponse(BaseModel):
+    entries: list[AuditLogEntryResponse]
+
+
+class CreateTenantRequest(BaseModel):
+    name: str
+    slug: str
+    contactEmail: str
+    planId: str | None = None          # "starter" | "growth" | "scale"
+    adminEmail: str | None = None      # If set, creates a Cognito user
+    adminUsername: str | None = None   # Optional; defaults to slug if not given
+
+
+class CreateTenantResponse(BaseModel):
+    tenantId: str
+    name: str
+    adminCreated: bool
+
+
+class SuccessResponse(BaseModel):
+    success: bool = True
+
+
+class PatchTenantPlanRequest(BaseModel):
+    plan: str | None  # "starter" | "growth" | "scale" | null
+
+
+class PatchTenantStatusRequest(BaseModel):
+    status: str  # "active" | "cancelled"

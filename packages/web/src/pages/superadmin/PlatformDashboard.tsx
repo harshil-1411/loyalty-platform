@@ -31,6 +31,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MetricCard } from "@/components/ui/metric-card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getPlatformMetrics,
@@ -77,35 +78,66 @@ export function PlatformDashboard() {
   const [plans, setPlans] = useState<PlanDistribution[]>([]);
   const [topTenants, setTopTenants] = useState<{ name: string; members: number }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [m, g, r, p, allTenants] = await Promise.all([
-        getPlatformMetrics(),
-        getTenantGrowthSeries(),
-        getRevenueTrendSeries(),
-        getPlanDistribution(),
-        listTenants(),
-      ]);
-      if (!cancelled) {
-        setMetrics(m);
-        setGrowth(g);
-        setRevenue(r);
-        setPlans(p);
-        setTopTenants(
-          allTenants
-            .slice()
-            .sort((a: Tenant, b: Tenant) => b.memberCount - a.memberCount)
-            .slice(0, 5)
-            .map((t: Tenant) => ({ name: t.name, members: t.memberCount }))
-        );
-        setLoading(false);
+      try {
+        const [m, g, r, p, allTenants] = await Promise.all([
+          getPlatformMetrics(),
+          getTenantGrowthSeries(),
+          getRevenueTrendSeries(),
+          getPlanDistribution(),
+          listTenants(),
+        ]);
+        if (!cancelled) {
+          setMetrics(m);
+          setGrowth(g);
+          setRevenue(r);
+          setPlans(p);
+          setTopTenants(
+            allTenants
+              .slice()
+              .sort((a: Tenant, b: Tenant) => b.memberCount - a.memberCount)
+              .slice(0, 5)
+              .map((t: Tenant) => ({ name: t.name, members: t.memberCount }))
+          );
+          setLoading(false);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load platform data");
+          setLoading(false);
+        }
       }
     }
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, [retryKey]);
+
+  /* ── Error state ── */
+  if (error) {
+    return (
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Platform Overview</h1>
+        <div className="mt-6 rounded-lg border border-border bg-card p-6" role="alert">
+          <p className="font-medium text-foreground">Failed to load platform data.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-4"
+            onClick={() => { setError(""); setLoading(true); setRetryKey((k) => k + 1); }}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   /* ── Loading skeleton ── */
   if (loading || !metrics) {

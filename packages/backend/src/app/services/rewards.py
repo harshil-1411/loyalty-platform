@@ -6,9 +6,15 @@ import string
 from app.db import get_table, key
 from app.exceptions import BadRequestError, NotFoundError
 
+_TXN_TTL_SECONDS = 18 * 30 * 24 * 3600
+
 
 def _table():
     return get_table()
+
+
+def _txn_ttl() -> int:
+    return int(time.time()) + _TXN_TTL_SECONDS
 
 
 def _reward_id() -> str:
@@ -86,6 +92,7 @@ def redeem(tenant_id: str, program_id: str, member_id: str, reward_id: str) -> d
             "points": cost,
             "rewardId": reward_id,
             "createdAt": now,
+            "ttl": _txn_ttl(),
             "gsi1pk": key.gsi1_tenant(tenant_id),
             "gsi1sk": key.gsi1_txn_sk(program_id, now, txn_id),
         },

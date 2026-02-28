@@ -79,7 +79,7 @@ describe("Login", () => {
 
   it("returns null when already authenticated", () => {
     vi.mocked(useAuth).mockReturnValue({
-      state: { status: "authenticated", user: { sub: "1", email: "a@b.com", username: "a" } },
+      state: { status: "authenticated", user: { sub: "1", email: "a@b.com", username: "a", role: "tenant_admin" } },
       signIn: vi.fn(),
       signOut: vi.fn(),
       signUp: vi.fn(),

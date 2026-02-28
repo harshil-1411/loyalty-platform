@@ -148,6 +148,50 @@ export function signOut(): void {
   }
 }
 
+export function changePassword(
+  oldPassword: string,
+  newPassword: string
+): Promise<void> {
+  return getCurrentUser().then((user) => {
+    if (!user) return Promise.reject(new Error('Not authenticated'))
+    return new Promise<void>((resolve, reject) => {
+      user.getSession((err: Error | null, session: unknown) => {
+        if (err || !session) return reject(err ?? new Error('No session'))
+        user.changePassword(oldPassword, newPassword, (e) => {
+          if (e) reject(e)
+          else resolve()
+        })
+      })
+    })
+  })
+}
+
+export function forgotPassword(username: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const pool = getPool()
+    const cognitoUser = new CognitoUser({ Username: username, Pool: pool })
+    cognitoUser.forgotPassword({
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(err),
+    })
+  })
+}
+
+export function confirmForgotPassword(
+  username: string,
+  code: string,
+  newPassword: string
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const pool = getPool()
+    const cognitoUser = new CognitoUser({ Username: username, Pool: pool })
+    cognitoUser.confirmPassword(code, newPassword, {
+      onSuccess: () => resolve(),
+      onFailure: (err) => reject(err),
+    })
+  })
+}
+
 export function getIdToken(): Promise<string | null> {
   return getCurrentUser().then((user) => {
     if (!user) return null

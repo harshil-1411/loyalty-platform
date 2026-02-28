@@ -352,6 +352,33 @@ export const subscriptionEvents: SubscriptionEvent[] = [
 ]
 
 /* ------------------------------------------------------------------ */
+/*  Audit log                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface AuditLogEntry {
+  id: string
+  action: string
+  actor: string
+  targetId: string
+  targetName: string
+  details: string  // JSON string
+  createdAt: string
+}
+
+export const auditLog: AuditLogEntry[] = [
+  { id: 'al-01', action: 'plan_changed',   actor: 'suparnbector', targetId: 't-002', targetName: 'FreshBasket Retail',    details: '{"plan":"scale"}',              createdAt: '2026-02-05T11:20:00Z' },
+  { id: 'al-02', action: 'status_changed', actor: 'suparnbector', targetId: 't-007', targetName: 'QuickFix Auto Services', details: '{"status":"cancelled"}',          createdAt: '2025-10-30T09:15:00Z' },
+  { id: 'al-03', action: 'user_disabled',  actor: 'suparnbector', targetId: 'arjun.patel', targetName: 'arjun.patel',     details: '{}',                             createdAt: '2025-10-30T09:20:00Z' },
+  { id: 'al-04', action: 'plan_changed',   actor: 'suparnbector', targetId: 't-001', targetName: 'GlowUp Salon & Spa',    details: '{"plan":"growth"}',              createdAt: '2026-01-12T14:05:00Z' },
+  { id: 'al-05', action: 'tenant_created', actor: 'suparnbector', targetId: 't-010', targetName: 'ZenWell Ayurveda',      details: '{"planId":"starter","adminCreated":true}', createdAt: '2026-01-08T15:00:00Z' },
+  { id: 'al-06', action: 'password_reset', actor: 'suparnbector', targetId: 'neha.gupta', targetName: 'neha.gupta',      details: '{}',                             createdAt: '2026-01-25T08:30:00Z' },
+  { id: 'al-07', action: 'status_changed', actor: 'suparnbector', targetId: 't-005', targetName: 'PetPals Veterinary',    details: '{"status":"active"}',            createdAt: '2026-02-02T10:45:00Z' },
+  { id: 'al-08', action: 'user_enabled',   actor: 'suparnbector', targetId: 'arjun.patel', targetName: 'arjun.patel',     details: '{}',                             createdAt: '2026-02-03T16:10:00Z' },
+  { id: 'al-09', action: 'plan_changed',   actor: 'suparnbector', targetId: 't-009', targetName: 'SpiceRoute Restaurant', details: '{"plan":"scale"}',              createdAt: '2026-02-06T09:00:00Z' },
+  { id: 'al-10', action: 'tenant_created', actor: 'suparnbector', targetId: 't-008', targetName: 'BookNook Library Café',  details: '{"planId":"starter","adminCreated":true}', createdAt: '2025-12-20T12:00:00Z' },
+]
+
+/* ------------------------------------------------------------------ */
 /*  Users                                                             */
 /* ------------------------------------------------------------------ */
 

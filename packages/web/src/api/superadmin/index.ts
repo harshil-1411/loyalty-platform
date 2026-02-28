@@ -9,7 +9,7 @@
 
 import { config } from '../../config'
 import { getIdToken } from '../../auth/cognito'
-import { apiGet } from '../client'
+import { apiGet, apiPost, apiPatch } from '../client'
 import type {
   Tenant,
   PlatformMetrics,
@@ -17,6 +17,7 @@ import type {
   PlanDistribution,
   PricingPlan,
   SubscriptionEvent,
+  AuditLogEntry,
   PlatformUser,
   Program,
 } from './mock-data'
@@ -30,8 +31,26 @@ import {
   planDistribution as mockPlanDistribution,
   pricingPlans as mockPricingPlans,
   subscriptionEvents as mockSubscriptionEvents,
+  auditLog as mockAuditLog,
   users as mockUsers,
 } from './mock-data'
+
+export type { AuditLogEntry }
+
+export interface CreateTenantData {
+  name: string
+  slug: string
+  contactEmail: string
+  planId?: string | null
+  adminEmail?: string | null
+  adminUsername?: string | null
+}
+
+export interface CreateTenantResult {
+  tenantId: string
+  name: string
+  adminCreated: boolean
+}
 
 /* ---- helpers ---- */
 
@@ -61,6 +80,18 @@ async function adminGet<T>(path: string, params?: Record<string, string | undefi
   return apiGet<T>(fullPath, '', token)
 }
 
+/** Authenticated POST request (no request body needed for simple action endpoints). */
+async function adminPost<T = void>(path: string, body?: unknown): Promise<T> {
+  const token = await getIdToken()
+  return apiPost<T>(`/api/v1/admin${path}`, '', body ?? {}, token)
+}
+
+/** Authenticated PATCH request. */
+async function adminPatch<T = void>(path: string, body: unknown): Promise<T> {
+  const token = await getIdToken()
+  return apiPatch<T>(`/api/v1/admin${path}`, '', body, token)
+}
+
 /* ------------------------------------------------------------------ */
 /*  Platform overview                                                  */
 /* ------------------------------------------------------------------ */
@@ -70,22 +101,16 @@ export function getPlatformMetrics(): Promise<PlatformMetrics> {
   return adminGet<PlatformMetrics>('/metrics')
 }
 
-/**
- * Tenant growth time-series.
- * No backend endpoint exists yet — returns mock data in all modes.
- * TODO: add GET /api/v1/admin/metrics/tenant-growth when available.
- */
-export function getTenantGrowthSeries(): Promise<TimeSeriesPoint[]> {
-  return delay(mockTenantGrowth)
+export async function getTenantGrowthSeries(): Promise<TimeSeriesPoint[]> {
+  if (isDev) return delay(mockTenantGrowth)
+  const res = await adminGet<{ points: TimeSeriesPoint[] }>('/metrics/tenant-growth')
+  return res.points
 }
 
-/**
- * Revenue trend time-series.
- * No backend endpoint exists yet — returns mock data in all modes.
- * TODO: add GET /api/v1/admin/metrics/revenue-trend when available.
- */
-export function getRevenueTrendSeries(): Promise<TimeSeriesPoint[]> {
-  return delay(mockRevenueTrend)
+export async function getRevenueTrendSeries(): Promise<TimeSeriesPoint[]> {
+  if (isDev) return delay(mockRevenueTrend)
+  const res = await adminGet<{ points: TimeSeriesPoint[] }>('/metrics/revenue-trend')
+  return res.points
 }
 
 export async function getPlanDistribution(): Promise<PlanDistribution[]> {
@@ -201,6 +226,73 @@ export async function listUsers(filters?: UserFilters): Promise<PlatformUser[]> 
     role: filters?.role ?? undefined,
   })
   return res.users
+}
+
+/* ------------------------------------------------------------------ */
+/*  User actions                                                       */
+/* ------------------------------------------------------------------ */
+
+export async function disableUser(username: string): Promise<void> {
+  if (isDev) return delay(undefined)
+  await adminPost(`/users/${encodeURIComponent(username)}/disable`)
+}
+
+export async function enableUser(username: string): Promise<void> {
+  if (isDev) return delay(undefined)
+  await adminPost(`/users/${encodeURIComponent(username)}/enable`)
+}
+
+export async function resetUserPassword(username: string): Promise<void> {
+  if (isDev) return delay(undefined)
+  await adminPost(`/users/${encodeURIComponent(username)}/reset-password`)
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tenant actions                                                     */
+/* ------------------------------------------------------------------ */
+
+export async function changeTenantPlan(tenantId: string, plan: string | null): Promise<void> {
+  if (isDev) return delay(undefined)
+  await adminPatch(`/tenants/${encodeURIComponent(tenantId)}/plan`, { plan })
+}
+
+export async function changeTenantStatus(tenantId: string, status: string): Promise<void> {
+  if (isDev) return delay(undefined)
+  await adminPatch(`/tenants/${encodeURIComponent(tenantId)}/status`, { status })
+}
+
+/* ------------------------------------------------------------------ */
+/*  Audit log                                                         */
+/* ------------------------------------------------------------------ */
+
+export async function getAuditLog(tenantId?: string, limit = 50): Promise<AuditLogEntry[]> {
+  if (isDev) {
+    const filtered = tenantId
+      ? mockAuditLog.filter((e) => e.targetId === tenantId)
+      : mockAuditLog
+    return delay(filtered.slice(0, limit))
+  }
+  const res = await adminGet<{ entries: AuditLogEntry[] }>('/audit-log', {
+    tenantId: tenantId ?? undefined,
+    limit: String(limit),
+  })
+  return res.entries
+}
+
+/* ------------------------------------------------------------------ */
+/*  Create tenant                                                      */
+/* ------------------------------------------------------------------ */
+
+export async function createTenant(data: CreateTenantData): Promise<CreateTenantResult> {
+  if (isDev) return delay({ tenantId: data.slug, name: data.name, adminCreated: !!data.adminEmail })
+  return adminPost<CreateTenantResult>('/tenants', {
+    name:          data.name,
+    slug:          data.slug,
+    contactEmail:  data.contactEmail,
+    planId:        data.planId ?? null,
+    adminEmail:    data.adminEmail ?? null,
+    adminUsername: data.adminUsername ?? null,
+  })
 }
 
 /* ---- re-export types for convenience ---- */

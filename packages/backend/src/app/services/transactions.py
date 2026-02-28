@@ -6,6 +6,9 @@ import string
 from app.db import get_table, key
 from app.exceptions import BadRequestError, NotFoundError
 
+# Transaction items expire after 18 months (DynamoDB TTL attribute)
+_TXN_TTL_SECONDS = 18 * 30 * 24 * 3600
+
 
 def _table():
     return get_table()
@@ -13,6 +16,10 @@ def _table():
 
 def _txn_id() -> str:
     return f"txn_{int(time.time()*1000)}_{''.join(random.choices(string.ascii_lowercase + string.digits, k=9))}"
+
+
+def _txn_ttl() -> int:
+    return int(time.time()) + _TXN_TTL_SECONDS
 
 
 def earn(tenant_id: str, program_id: str, member_id: str, points: int, idempotency_key: str | None = None) -> dict:
@@ -38,6 +45,7 @@ def earn(tenant_id: str, program_id: str, member_id: str, points: int, idempoten
             "points": points,
             "idempotencyKey": idempotency_key,
             "createdAt": now,
+            "ttl": _txn_ttl(),
             "gsi1pk": key.gsi1_tenant(tenant_id),
             "gsi1sk": key.gsi1_txn_sk(program_id, now, txn_id),
         },
@@ -73,6 +81,7 @@ def burn(tenant_id: str, program_id: str, member_id: str, points: int) -> dict:
             "memberId": member_id,
             "points": points,
             "createdAt": now,
+            "ttl": _txn_ttl(),
             "gsi1pk": key.gsi1_tenant(tenant_id),
             "gsi1sk": key.gsi1_txn_sk(program_id, now, txn_id),
         },

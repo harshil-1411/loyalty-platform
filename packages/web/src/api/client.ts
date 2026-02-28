@@ -11,6 +11,18 @@ export function getApiHeaders(tenantId: string, idToken?: string | null): Header
   return headers
 }
 
+/** Extract a human-readable message from a backend error payload. */
+function extractErrorMessage(err: Record<string, unknown>, fallback: string): string {
+  const e = err.error
+  if (typeof e === 'string') return e
+  if (e && typeof e === 'object') {
+    const m = (e as Record<string, unknown>).message
+    if (typeof m === 'string') return m
+  }
+  if (typeof err.message === 'string') return err.message
+  return fallback
+}
+
 export async function apiGet<T>(path: string, tenantId: string, idToken?: string | null): Promise<T> {
   const url = `${baseUrl()}${path.startsWith('/') ? path : `/${path}`}`
   const res = await fetch(url, {
@@ -19,7 +31,7 @@ export async function apiGet<T>(path: string, tenantId: string, idToken?: string
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || res.statusText)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
   return res.json()
 }
@@ -33,7 +45,7 @@ export async function apiPost<T>(path: string, tenantId: string, body: unknown, 
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || res.statusText)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
   return res.json()
 }
@@ -47,7 +59,7 @@ export async function apiPut<T>(path: string, tenantId: string, body: unknown, i
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || res.statusText)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
   return res.json()
 }
@@ -61,7 +73,7 @@ export async function apiPatch<T>(path: string, tenantId: string, body: unknown,
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error?.message || err.error || res.statusText)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
   return res.json()
 }
@@ -74,6 +86,6 @@ export async function apiDelete(path: string, tenantId: string, idToken?: string
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || res.statusText)
+    throw new Error(extractErrorMessage(err, res.statusText))
   }
 }

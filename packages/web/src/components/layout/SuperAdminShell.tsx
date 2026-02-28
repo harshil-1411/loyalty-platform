@@ -45,6 +45,8 @@ export function SuperAdminShell() {
 
   if (state.status !== "authenticated") return null;
 
+  const { user } = state;
+
   function isActive(path: string, exact?: boolean) {
     if (exact) return location.pathname === path;
     return location.pathname === path || location.pathname.startsWith(path + "/");
@@ -94,9 +96,9 @@ export function SuperAdminShell() {
         </div>
         <div
           className="mb-3 truncate px-3 text-xs text-sidebar-foreground/60"
-          title={state.user.email ?? state.user.username}
+          title={user.email ?? user.username}
         >
-          {state.user.email ?? state.user.username}
+          {user.email ?? user.username}
         </div>
         <button
           onClick={signOut}

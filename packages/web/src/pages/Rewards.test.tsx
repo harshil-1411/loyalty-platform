@@ -23,7 +23,7 @@ const mockRewards = [
 describe("Rewards (catalog + redeem)", () => {
   beforeEach(() => {
     vi.mocked(useAuth).mockReturnValue({
-      state: { status: "authenticated", user: { sub: "tenant-1", email: "u@e.com", username: "u" } },
+      state: { status: "authenticated", user: { sub: "tenant-1", email: "u@e.com", username: "u", role: "tenant_admin" } },
       signIn: vi.fn(),
       signOut: vi.fn(),
       signUp: vi.fn(),

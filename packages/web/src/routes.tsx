@@ -6,6 +6,9 @@ import { SuperAdminGuard } from "@/components/layout/SuperAdminGuard";
 /* ---- Tenant pages ---- */
 const Login = lazy(() => import("@/pages/Login").then((m) => ({ default: m.Login })));
 const SignUp = lazy(() => import("@/pages/SignUp").then((m) => ({ default: m.SignUp })));
+const ForgotPassword = lazy(() =>
+  import("@/pages/ForgotPassword").then((m) => ({ default: m.ForgotPassword }))
+);
 const PremiumDashboard = lazy(() =>
   import("@/pages/PremiumDashboard").then((m) => ({ default: m.PremiumDashboard }))
 );
@@ -60,6 +63,14 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<RouteFallback />}>
         <SignUp />
+      </Suspense>
+    ),
+  },
+  {
+    path: "/forgot-password",
+    element: (
+      <Suspense fallback={<RouteFallback />}>
+        <ForgotPassword />
       </Suspense>
     ),
   },
