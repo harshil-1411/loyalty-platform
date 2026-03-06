@@ -3,8 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
+  Check,
+  Copy,
   CreditCard,
   Gift,
+  Key,
   Receipt,
   Users,
 } from "lucide-react";
@@ -15,6 +18,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -41,10 +46,15 @@ import {
   changeTenantPlan,
   changeTenantStatus,
   getAuditLog,
+  listTenantApiKeys,
+  createTenantApiKey,
+  revokeTenantApiKey,
   type Tenant,
   type Program,
   type PlanKey,
   type AuditLogEntry,
+  type ApiKey,
+  type CreateApiKeyResult,
 } from "@/api/superadmin";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -93,6 +103,14 @@ export function TenantDetail() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [keysLoading, setKeysLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [rawKeyResult, setRawKeyResult] = useState<CreateApiKeyResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   async function applyPlan() {
     if (!tenant) return;
@@ -123,6 +141,52 @@ export function TenantDetail() {
     }
   }
 
+  async function loadApiKeys() {
+    if (!tenantId) return;
+    setKeysLoading(true);
+    try {
+      const keys = await listTenantApiKeys(tenantId);
+      setApiKeys(keys);
+    } catch { /* non-critical */ }
+    finally { setKeysLoading(false); }
+  }
+
+  async function handleCreateKey() {
+    if (!tenantId || !newKeyName.trim()) return;
+    setGenerating(true);
+    try {
+      const result = await createTenantApiKey(tenantId, newKeyName.trim());
+      setRawKeyResult(result);
+      setCreateDialogOpen(false);
+      setNewKeyName("");
+      void loadApiKeys();
+    } catch {
+      toast.error("Failed to generate API key.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleRevokeKey(keyId: string) {
+    if (!tenantId) return;
+    setRevokingId(keyId);
+    try {
+      await revokeTenantApiKey(tenantId, keyId);
+      setApiKeys((prev) => prev.map((k) => k.keyId === keyId ? { ...k, isActive: false } : k));
+      toast.success("API key revoked.");
+    } catch {
+      toast.error("Failed to revoke API key.");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  async function copyToClipboard(text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   useEffect(() => {
     if (!tenantId) return;
     let cancelled = false;
@@ -149,7 +213,7 @@ export function TenantDetail() {
     return () => { cancelled = true; };
   }, [tenantId, retryKey]);
 
-  // Load audit log separately (non-blocking)
+  // Load audit log and API keys separately (non-blocking)
   useEffect(() => {
     if (!tenantId) return;
     setAuditLoading(true);
@@ -157,6 +221,7 @@ export function TenantDetail() {
       .then((entries) => setAuditLog(entries))
       .catch(() => {/* non-critical */})
       .finally(() => setAuditLoading(false));
+    void loadApiKeys();
   }, [tenantId, retryKey]);
 
   /* ── Error ── */
@@ -338,6 +403,7 @@ export function TenantDetail() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="programs">Programs</TabsTrigger>
+          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -409,6 +475,201 @@ export function TenantDetail() {
                       <span className="tabular-nums">{prog.memberCount.toLocaleString("en-IN")} members</span>
                       <span>{formatDate(prog.createdAt)}</span>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </TabsContent>
+
+        {/* ── API Keys tab ── */}
+        <TabsContent value="api-keys" className="space-y-4">
+          {/* Generate Key dialog */}
+          <AlertDialog open={createDialogOpen} onOpenChange={(open) => { setCreateDialogOpen(open); if (!open) setNewKeyName(""); }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-foreground">API Keys</h3>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" className="gap-1.5">
+                  <Key className="h-3.5 w-3.5" aria-hidden />
+                  Generate Key
+                </Button>
+              </AlertDialogTrigger>
+            </div>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Generate API Key</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Create a new API key for <strong>{tenant.name}</strong>. The secret key will only be shown once.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-1.5 py-2">
+                <Label htmlFor="key-name">Key Name</Label>
+                <Input
+                  id="key-name"
+                  placeholder="e.g. Salon Production"
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && newKeyName.trim()) void handleCreateKey(); }}
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button onClick={() => void handleCreateKey()} disabled={generating || !newKeyName.trim()}>
+                  {generating ? "Generating…" : "Generate"}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Raw key result dialog */}
+          <AlertDialog open={!!rawKeyResult} onOpenChange={(open) => { if (!open) { setRawKeyResult(null); setCopied(false); } }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>API Key Created</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Copy this key now. It will <strong>not be shown again</strong>.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              {rawKeyResult && (
+                <div className="space-y-3 py-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Key Name</Label>
+                    <p className="text-sm font-medium">{rawKeyResult.name}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Secret Key</Label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded-md border border-border bg-muted px-3 py-2 text-xs font-mono break-all select-all">
+                        {rawKeyResult.rawKey}
+                      </code>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 gap-1.5"
+                        onClick={() => void copyToClipboard(rawKeyResult.rawKey)}
+                      >
+                        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copied ? "Copied" : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogAction>Done</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Keys list */}
+          {keysLoading ? (
+            <div className="space-y-2">
+              {[1, 2].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+            </div>
+          ) : apiKeys.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                <Key className="mb-3 h-8 w-8 text-muted-foreground/40" aria-hidden />
+                <p className="font-medium text-foreground">No API keys</p>
+                <p className="mt-1 text-sm text-muted-foreground">Generate a key to allow external systems to integrate with this tenant.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Desktop header */}
+              <div className="hidden rounded-md border border-border bg-muted/50 px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+                <span>Name</span>
+                <span>Key Prefix</span>
+                <span>Status</span>
+                <span>Created</span>
+                <span className="text-right">Action</span>
+              </div>
+              {apiKeys.map((k) => (
+                <div key={k.keyId} className="rounded-lg border border-border bg-card px-4 py-3">
+                  {/* Desktop */}
+                  <div className="hidden items-center sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{k.name}</p>
+                      <p className="text-xs text-muted-foreground">…{k.keyLast4}</p>
+                    </div>
+                    <span className="text-sm font-mono text-muted-foreground">{k.keyPrefix}…</span>
+                    <span>
+                      {k.isActive
+                        ? <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Active</span>
+                        : <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-400">Revoked</span>
+                      }
+                    </span>
+                    <span className="text-sm text-muted-foreground">{formatDate(k.createdAt)}</span>
+                    <div className="text-right">
+                      {k.isActive ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={revokingId === k.keyId}>
+                              {revokingId === k.keyId ? "Revoking…" : "Revoke"}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Revoke API key?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently deactivate <strong>{k.name}</strong>. Any integration using this key will stop working immediately.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => void handleRevokeKey(k.keyId)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Revoke
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Mobile */}
+                  <div className="space-y-1.5 sm:hidden">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground">{k.name}</p>
+                      {k.isActive
+                        ? <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Active</span>
+                        : <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-400">Revoked</span>
+                      }
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="font-mono">{k.keyPrefix}…{k.keyLast4}</span>
+                      <span>{formatDate(k.createdAt)}</span>
+                    </div>
+                    {k.isActive && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="ghost" className="mt-1 h-7 text-xs text-destructive hover:text-destructive" disabled={revokingId === k.keyId}>
+                            {revokingId === k.keyId ? "Revoking…" : "Revoke Key"}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Revoke API key?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently deactivate <strong>{k.name}</strong>. Any integration using this key will stop working immediately.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => void handleRevokeKey(k.keyId)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Revoke
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </div>
               ))}

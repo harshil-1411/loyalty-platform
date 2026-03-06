@@ -9,7 +9,7 @@
 
 import { config } from '../../config'
 import { getIdToken } from '../../auth/cognito'
-import { apiGet, apiPost, apiPatch } from '../client'
+import { apiGet, apiPost, apiPatch, apiDelete } from '../client'
 import type {
   Tenant,
   PlatformMetrics,
@@ -90,6 +90,12 @@ async function adminPost<T = void>(path: string, body?: unknown): Promise<T> {
 async function adminPatch<T = void>(path: string, body: unknown): Promise<T> {
   const token = await getIdToken()
   return apiPatch<T>(`/api/v1/admin${path}`, '', body, token)
+}
+
+/** Authenticated DELETE request. */
+async function adminDeleteReq(path: string): Promise<void> {
+  const token = await getIdToken()
+  return apiDelete(`/api/v1/admin${path}`, '', token)
 }
 
 /* ------------------------------------------------------------------ */
@@ -293,6 +299,51 @@ export async function createTenant(data: CreateTenantData): Promise<CreateTenant
     adminEmail:    data.adminEmail ?? null,
     adminUsername: data.adminUsername ?? null,
   })
+}
+
+/* ------------------------------------------------------------------ */
+/*  API Keys                                                           */
+/* ------------------------------------------------------------------ */
+
+export interface ApiKey {
+  keyId: string
+  name: string
+  keyPrefix: string
+  keyLast4: string
+  isActive: boolean
+  createdAt: string
+}
+
+export interface CreateApiKeyResult {
+  keyId: string
+  rawKey: string
+  name: string
+  keyPrefix: string
+  createdAt: string
+}
+
+export async function listTenantApiKeys(tenantId: string): Promise<ApiKey[]> {
+  if (isDev) return delay([])
+  const res = await adminGet<{ apiKeys: ApiKey[] }>(`/tenants/${encodeURIComponent(tenantId)}/api-keys`)
+  return res.apiKeys
+}
+
+export async function createTenantApiKey(tenantId: string, name: string): Promise<CreateApiKeyResult> {
+  if (isDev) {
+    return delay({
+      keyId: 'key_mock_001',
+      rawKey: 'lp_test_00000000000000000000000000000000',
+      name,
+      keyPrefix: 'lp_test_0000',
+      createdAt: new Date().toISOString(),
+    })
+  }
+  return adminPost<CreateApiKeyResult>(`/tenants/${encodeURIComponent(tenantId)}/api-keys`, { name })
+}
+
+export async function revokeTenantApiKey(tenantId: string, keyId: string): Promise<void> {
+  if (isDev) return delay(undefined)
+  await adminDeleteReq(`/tenants/${encodeURIComponent(tenantId)}/api-keys/${encodeURIComponent(keyId)}`)
 }
 
 /* ---- re-export types for convenience ---- */

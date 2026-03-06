@@ -14,6 +14,9 @@ import {
   signOut as cognitoSignOut,
   signUp as cognitoSignUp,
   confirmSignUp as cognitoConfirmSignUp,
+  initFromSsoToken,
+  getSsoSession,
+  wasSsoSession,
 } from './cognito'
 
 /** Mock super-admin identity used when VITE_SUPER_ADMIN_MODE=true */
@@ -54,6 +57,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setState({ status: 'disabled', reason: 'Auth not configured' })
       return
     }
+
+    // 1. Check URL for SSO token (first load from salon dashboard redirect)
+    const params = new URLSearchParams(window.location.search)
+    const ssoToken = params.get('sso_token')
+    if (ssoToken) {
+      const ssoUser = initFromSsoToken(ssoToken)
+      if (ssoUser) {
+        // Clean the token from URL without triggering a reload
+        params.delete('sso_token')
+        const clean = params.toString()
+        const newUrl = window.location.pathname + (clean ? `?${clean}` : '') + window.location.hash
+        window.history.replaceState({}, '', newUrl)
+        setState({ status: 'authenticated', user: ssoUser })
+        return
+      }
+    }
+
+    // 2. Check sessionStorage for existing SSO session (tab refresh)
+    const ssoSession = getSsoSession()
+    if (ssoSession) {
+      setState({ status: 'authenticated', user: ssoSession.user })
+      return
+    }
+
+    // 2b. If this was an SSO tab but the token expired, do NOT fall through
+    // to Cognito SDK (could be a different user like super admin)
+    if (wasSsoSession()) {
+      setState({ status: 'unauthenticated' })
+      return
+    }
+
+    // 3. Fall through to normal Cognito SDK session
     const user = await getSessionUser()
     if (user) {
       setState({ status: 'authenticated', user })

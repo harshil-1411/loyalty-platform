@@ -5,6 +5,10 @@ REWARD_SK_PREFIX = "REWARD#"
 TXN_SK_PREFIX = "TXN#"
 BALANCE_SK_PREFIX = "BALANCE#"
 MEMBER_SK_PREFIX = "MEMBER#"
+IDEM_SK_PREFIX = "IDEM#"
+API_KEY_PK_PREFIX = "API_KEY#"
+API_KEY_SK = "API_KEY"
+API_KEY_INDEX_SK_PREFIX = "API_KEY#"
 
 # Global partitions (non-tenant data)
 BILLING_EVENTS_PK = "BILLING_EVENTS"
@@ -68,6 +72,18 @@ def gsi1_txn_sk(program_id: str, iso_ts: str, txn_id: str) -> str:
     return f"{TXN_SK_PREFIX}{program_id}#{iso_ts}#{txn_id}"
 
 
+def idem_sk(idempotency_key: str) -> str:
+    return f"{IDEM_SK_PREFIX}{idempotency_key}"
+
+
+def api_key_pk(key_hash: str) -> str:
+    return f"{API_KEY_PK_PREFIX}{key_hash}"
+
+
+def api_key_index_sk(key_hash: str) -> str:
+    return f"{API_KEY_INDEX_SK_PREFIX}{key_hash}"
+
+
 class key:
     # Prefix constants (mirrors module-level constants for convenience)
     PROGRAM_SK_PREFIX = PROGRAM_SK_PREFIX
@@ -75,6 +91,10 @@ class key:
     TXN_SK_PREFIX = TXN_SK_PREFIX
     BALANCE_SK_PREFIX = BALANCE_SK_PREFIX
     MEMBER_SK_PREFIX = MEMBER_SK_PREFIX
+    IDEM_SK_PREFIX = IDEM_SK_PREFIX
+    API_KEY_PK_PREFIX = API_KEY_PK_PREFIX
+    API_KEY_SK = API_KEY_SK
+    API_KEY_INDEX_SK_PREFIX = API_KEY_INDEX_SK_PREFIX
 
     # Global partition keys
     BILLING_EVENTS_PK = BILLING_EVENTS_PK
@@ -90,6 +110,9 @@ class key:
     member_sk       = staticmethod(member_sk)
     reward_sk       = staticmethod(reward_sk)
     txn_sk          = staticmethod(txn_sk)
+    idem_sk         = staticmethod(idem_sk)
+    api_key_pk      = staticmethod(api_key_pk)
+    api_key_index_sk = staticmethod(api_key_index_sk)
     billing_event_sk = staticmethod(billing_event_sk)
     audit_log_sk    = staticmethod(audit_log_sk)
     mrr_snapshot_sk = staticmethod(mrr_snapshot_sk)

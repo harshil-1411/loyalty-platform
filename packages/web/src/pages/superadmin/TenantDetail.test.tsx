@@ -8,6 +8,12 @@ import * as superadminApi from "@/api/superadmin";
 vi.mock("@/api/superadmin", () => ({
   getTenantDetail: vi.fn(),
   getTenantPrograms: vi.fn(),
+  getAuditLog: vi.fn().mockResolvedValue([]),
+  listTenantApiKeys: vi.fn().mockResolvedValue([]),
+  changeTenantPlan: vi.fn(),
+  changeTenantStatus: vi.fn(),
+  createTenantApiKey: vi.fn(),
+  revokeTenantApiKey: vi.fn(),
 }));
 
 const mockTenant = {

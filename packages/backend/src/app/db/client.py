@@ -2,11 +2,13 @@
 
 import os
 import boto3
+from boto3.dynamodb.types import TypeSerializer
 from botocore.config import Config
 from app.config import settings
 
 _resource = None
 _client = None
+_serializer = TypeSerializer()
 
 
 def get_table_name() -> str:
@@ -28,8 +30,13 @@ def get_table():
 
 
 def get_doc_client():
-    """Low-level client for query/scan when needed."""
+    """Low-level DynamoDB client for transact_write_items and raw operations."""
     global _client
     if _client is None:
-        _client = get_resource().meta.client
+        _client = boto3.client("dynamodb", config=Config(retries={"mode": "standard", "max_attempts": 3}))
     return _client
+
+
+def serialize_item(item: dict) -> dict:
+    """Convert a Python dict to DynamoDB JSON for the low-level client."""
+    return {k: _serializer.serialize(v) for k, v in item.items() if v is not None}

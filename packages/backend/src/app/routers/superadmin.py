@@ -1,4 +1,4 @@
-"""Super-admin API: platform metrics, tenants, plans, billing events, users."""
+"""Super-admin API: platform metrics, tenants, plans, billing events, users, API keys."""
 
 from fastapi import APIRouter, Depends, Query
 
@@ -19,7 +19,9 @@ from app.models.superadmin import (
     PatchTenantStatusRequest,
     TimeSeriesResponse,
 )
+from app.models.api_keys import CreateApiKeyRequest, CreateApiKeyResponse, ApiKeyListResponse, ApiKeyResponse
 from app.services import superadmin as svc
+from app.services import api_keys as api_keys_svc
 from app.exceptions import NotFoundError
 
 router = APIRouter(prefix="/admin", tags=["Super Admin"])
@@ -183,4 +185,39 @@ def patch_tenant_status(
 ):
     """Update a tenant's billing status (active / cancelled)."""
     svc.patch_tenant_status(tenant_id, body.status, actor=actor)
+    return SuccessResponse()
+
+
+# ---------------------------------------------------------------------------
+# API Key Management
+# ---------------------------------------------------------------------------
+
+@router.post("/tenants/{tenant_id}/api-keys", response_model=CreateApiKeyResponse, status_code=201)
+def create_api_key(
+    tenant_id: str,
+    body: CreateApiKeyRequest,
+    _user_sub: str = Depends(require_super_admin),
+):
+    """Generate a new API key for a tenant. The raw key is returned only once."""
+    return api_keys_svc.create_api_key(tenant_id, body.name, body.programId)
+
+
+@router.get("/tenants/{tenant_id}/api-keys", response_model=ApiKeyListResponse)
+def list_api_keys(
+    tenant_id: str,
+    _user_sub: str = Depends(require_super_admin),
+):
+    """List API keys for a tenant (masked)."""
+    items = api_keys_svc.list_api_keys(tenant_id)
+    return ApiKeyListResponse(apiKeys=[ApiKeyResponse(**x) for x in items])
+
+
+@router.delete("/tenants/{tenant_id}/api-keys/{key_id}", response_model=SuccessResponse)
+def revoke_api_key(
+    tenant_id: str,
+    key_id: str,
+    _user_sub: str = Depends(require_super_admin),
+):
+    """Revoke an API key."""
+    api_keys_svc.revoke_api_key(tenant_id, key_id)
     return SuccessResponse()

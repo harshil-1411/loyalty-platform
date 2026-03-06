@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.config import settings
+from app.db import get_table, key as db_key
 from app.exceptions import (
     ErrorDetail,
     ErrorResponse,
@@ -23,7 +24,7 @@ from app.exceptions import (
     ConflictError,
 )
 from app.logging_config import configure_logging
-from app.routers import hello, programs, transactions, rewards, billing, webhooks, me, superadmin
+from app.routers import hello, programs, transactions, rewards, billing, webhooks, me, superadmin, sso, auth
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -71,6 +72,10 @@ async def _set_tenant_from_authorizer(request: Request, call_next):
                     request.state.cognito_groups = groups_raw
                 else:
                     request.state.cognito_groups = []
+            # API key identifier for per-key rate limiting
+            api_key_id = authorizer.get("api_key_id") or (isinstance(authorizer.get("lambda"), dict) and authorizer["lambda"].get("api_key_id"))
+            if api_key_id:
+                request.state.api_key_id = api_key_id if isinstance(api_key_id, str) else str(api_key_id)
         except Exception:  # noqa: BLE001
             pass
     return await call_next(request)
@@ -98,12 +103,63 @@ async def add_request_id(request: Request, call_next):
     return response
 
 
+_BILLING_SKIP_SUBPATHS = ("/hello", "/webhooks", "/admin")
+
+
+async def billing_check(request: Request, call_next):
+    """Enforce billing status for authenticated API calls.
+    - active / trialing → allow all
+    - past_due          → allow GET, block writes with 403 BILLING_SUSPENDED
+    - cancelled / other → block all with 403 BILLING_CANCELLED
+    Skipped for /hello and /webhooks paths. Fails open on DynamoDB error.
+    """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        return await call_next(request)
+
+    path = request.url.path
+    if any(sub in path for sub in _BILLING_SKIP_SUBPATHS):
+        return await call_next(request)
+
+    request_id = getattr(request.state, "request_id", None)
+
+    try:
+        table = get_table()
+        k = db_key.tenant(tenant_id)
+        res = table.get_item(
+            Key={"pk": k["pk"], "sk": k["sk"]},
+            ProjectionExpression="billingStatus",
+        )
+        billing_status = (res.get("Item") or {}).get("billingStatus", "")
+    except Exception:
+        return await call_next(request)  # fail open
+
+    if billing_status in ("active", "trialing"):
+        return await call_next(request)
+
+    if billing_status == "past_due":
+        if request.method == "GET":
+            return await call_next(request)
+        return _error_response(403, "BILLING_SUSPENDED", "Account payment is past due. Read access only.", request_id)
+
+    return _error_response(403, "BILLING_CANCELLED", "Account is suspended. Contact support to reactivate.", request_id)
+
+
 from slowapi import Limiter
+
+
+def _rate_limit_key(request: Request) -> str:
+    """Per-API-key rate limiting for external integrations, IP-based for others."""
+    api_key_id = getattr(request.state, "api_key_id", None)
+    if api_key_id:
+        return f"apikey:{api_key_id}"
+    return get_remote_address(request)
+
 
 _default_limit = f"{settings.rate_limit_requests}/{settings.rate_limit_window_sec}second"
 if settings.rate_limit_window_sec >= 60:
     _default_limit = f"{settings.rate_limit_requests}/{settings.rate_limit_window_sec // 60}minute"
-limiter = Limiter(key_func=get_remote_address, default_limits=[_default_limit])
+limiter = Limiter(key_func=_rate_limit_key, default_limits=[_default_limit])
 
 app = FastAPI(
     title="Loyalty Platform API",
@@ -123,6 +179,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+app.middleware("http")(billing_check)
 app.middleware("http")(add_request_id)
 
 
@@ -191,6 +248,8 @@ app.include_router(billing.router, prefix=settings.api_base_path)
 app.include_router(webhooks.router, prefix=settings.api_base_path)
 app.include_router(me.router, prefix=settings.api_base_path)
 app.include_router(superadmin.router, prefix=settings.api_base_path)
+app.include_router(sso.router, prefix=settings.api_base_path)
+app.include_router(auth.router, prefix=settings.api_base_path)
 
 
 def get_mangum_handler():

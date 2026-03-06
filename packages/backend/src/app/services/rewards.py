@@ -3,7 +3,8 @@
 import time
 import random
 import string
-from app.db import get_table, key
+from botocore.exceptions import ClientError
+from app.db import get_table, get_doc_client, get_table_name, serialize_item, key
 from app.exceptions import BadRequestError, NotFoundError
 
 _TXN_TTL_SECONDS = 18 * 30 * 24 * 3600
@@ -69,32 +70,55 @@ def redeem(tenant_id: str, program_id: str, member_id: str, reward_id: str) -> d
     reward = reward_res.get("Item")
     if not reward:
         raise NotFoundError("Reward not found")
-    cost = reward.get("pointsCost", 0)
-    balance_sk = key.balance_sk(member_id)
-    balance_res = tbl.get_item(Key={"pk": pk, "sk": balance_sk})
-    current = balance_res.get("Item", {}).get("points", 0)
+    cost = int(reward.get("pointsCost", 0))
+    sk_balance = key.balance_sk(member_id)
+
+    # Early check for better error message (not the real guard)
+    balance_res = tbl.get_item(Key={"pk": pk, "sk": sk_balance})
+    current = int(balance_res.get("Item", {}).get("points", 0))
     if current < cost:
         raise BadRequestError(f"Insufficient points (balance={current}, required={cost})")
+
     now = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
     txn_id = _txn_id()
     sk_txn = key.txn_sk(now, txn_id)
-    tbl.update_item(
-        Key={"pk": pk, "sk": balance_sk},
-        UpdateExpression="SET points = points - :cost, updatedAt = :now",
-        ExpressionAttributeValues={":cost": cost, ":now": now},
-    )
-    tbl.put_item(
-        Item={
-            "pk": pk,
-            "sk": sk_txn,
-            "type": "redemption",
-            "memberId": member_id,
-            "points": cost,
-            "rewardId": reward_id,
-            "createdAt": now,
-            "ttl": _txn_ttl(),
-            "gsi1pk": key.gsi1_tenant(tenant_id),
-            "gsi1sk": key.gsi1_txn_sk(program_id, now, txn_id),
-        },
-    )
+    table_name = get_table_name()
+
+    try:
+        get_doc_client().transact_write_items(TransactItems=[
+            {
+                "Update": {
+                    "TableName": table_name,
+                    "Key": {"pk": {"S": pk}, "sk": {"S": sk_balance}},
+                    "UpdateExpression": "SET points = points - :cost, updatedAt = :now",
+                    "ConditionExpression": "points >= :cost",
+                    "ExpressionAttributeValues": {
+                        ":cost": {"N": str(cost)},
+                        ":now": {"S": now},
+                    },
+                }
+            },
+            {
+                "Put": {
+                    "TableName": table_name,
+                    "Item": serialize_item({
+                        "pk": pk,
+                        "sk": sk_txn,
+                        "type": "redemption",
+                        "memberId": member_id,
+                        "points": cost,
+                        "rewardId": reward_id,
+                        "createdAt": now,
+                        "ttl": _txn_ttl(),
+                        "gsi1pk": key.gsi1_tenant(tenant_id),
+                        "gsi1sk": key.gsi1_txn_sk(program_id, now, txn_id),
+                    }),
+                }
+            },
+        ])
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "TransactionCanceledException":
+            raise BadRequestError(f"Insufficient points (balance={current}, required={cost})")
+        raise
+
     return {"transactionId": txn_id, "rewardId": reward_id, "pointsDeducted": cost, "balance": current - cost}

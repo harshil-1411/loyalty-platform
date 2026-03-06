@@ -112,6 +112,7 @@ export class LoyaltyPlatformStack extends cdk.Stack {
       authFlows: {
         userPassword: true,
         userSrp: true,
+        adminUserPassword: true,
       },
       generateSecret: false,
     });
@@ -186,11 +187,15 @@ export class LoyaltyPlatformStack extends cdk.Stack {
           local: {
             tryBundle(outputDir: string): boolean {
               try {
+                const pipCmd = process.platform === 'win32' ? 'py -m pip' : 'pip3';
+                const cpCmd = process.platform === 'win32'
+                  ? `xcopy src\\app "${outputDir}\\app" /E /I /Q /Y`
+                  : `cp -r src/app "${outputDir}/app"`;
                 execSync(
-                  `pip3 install -r requirements.txt -t "${outputDir}" --platform manylinux2014_x86_64 --python-version 3.11 --only-binary=:all: --implementation cp`,
+                  `${pipCmd} install -r requirements.txt -t "${outputDir}" --platform manylinux2014_x86_64 --python-version 3.11 --only-binary=:all: --implementation cp`,
                   { cwd: backendDir, stdio: 'inherit' }
                 );
-                execSync(`cp -r src/app "${outputDir}/app"`, { cwd: backendDir });
+                execSync(cpCmd, { cwd: backendDir });
                 return true;
               } catch (_e) {
                 return false;
@@ -212,6 +217,7 @@ export class LoyaltyPlatformStack extends cdk.Stack {
         RATE_LIMIT_REQUESTS: '100',
         RATE_LIMIT_WINDOW_SEC: '60',
         USER_POOL_ID: this.userPool.userPoolId,
+        USER_POOL_CLIENT_ID: this.userPoolClient.userPoolClientId,
         FRONTEND_URL: webOriginUrl,
         RAZORPAY_WEBHOOK_SECRET_PARAM: razorpayWebhookSecretParam.parameterName,
         RAZORPAY_KEY_ID_PARAM: razorpayKeyIdParam.parameterName,
@@ -219,12 +225,13 @@ export class LoyaltyPlatformStack extends cdk.Stack {
         RAZORPAY_PLAN_STARTER_PARAM: razorpayPlanStarterParam.parameterName,
         RAZORPAY_PLAN_GROWTH_PARAM: razorpayPlanGrowthParam.parameterName,
         RAZORPAY_PLAN_SCALE_PARAM: razorpayPlanScaleParam.parameterName,
+        ...(!isProd && { SUPER_ADMIN_BYPASS: 'true' }),
       },
     });
     this.loyaltyTable.grantReadWriteData(apiHandler);
     apiHandler.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ['cognito-idp:AdminUpdateUserAttributes', 'cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDisableUser', 'cognito-idp:AdminEnableUser', 'cognito-idp:AdminResetUserPassword'],
+        actions: ['cognito-idp:AdminUpdateUserAttributes', 'cognito-idp:ListUsers', 'cognito-idp:ListUsersInGroup', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDisableUser', 'cognito-idp:AdminEnableUser', 'cognito-idp:AdminResetUserPassword', 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminSetUserPassword', 'cognito-idp:AdminInitiateAuth'],
         resources: [this.userPool.userPoolArn],
       }),
     );
@@ -255,7 +262,7 @@ export class LoyaltyPlatformStack extends cdk.Stack {
           apigatewayv2.CorsHttpMethod.DELETE,
           apigatewayv2.CorsHttpMethod.OPTIONS,
         ],
-        allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Request-ID'],
+        allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Request-ID', 'X-API-Key'],
         maxAge: cdk.Duration.hours(1),
       },
     });
@@ -271,11 +278,15 @@ export class LoyaltyPlatformStack extends cdk.Stack {
           local: {
             tryBundle(outputDir: string): boolean {
               try {
+                const pipCmd = process.platform === 'win32' ? 'py -m pip' : 'pip3';
+                const cpCmd = process.platform === 'win32'
+                  ? `copy handler.py "${outputDir}\\"`
+                  : `cp handler.py "${outputDir}/"`;
                 execSync(
-                  `pip3 install -r requirements.txt -t "${outputDir}" --platform manylinux2014_x86_64 --python-version 3.11 --only-binary=:all: --implementation cp`,
+                  `${pipCmd} install -r requirements.txt -t "${outputDir}" --platform manylinux2014_x86_64 --python-version 3.11 --only-binary=:all: --implementation cp`,
                   { cwd: authorizerDir, stdio: 'inherit' }
                 );
-                execSync(`cp handler.py "${outputDir}/"`, { cwd: authorizerDir });
+                execSync(cpCmd, { cwd: authorizerDir });
                 return true;
               } catch (_e) {
                 return false;
@@ -293,15 +304,27 @@ export class LoyaltyPlatformStack extends cdk.Stack {
       environment: {
         USER_POOL_ID: this.userPool.userPoolId,
         CLIENT_ID: this.userPoolClient.userPoolClientId,
+        TABLE_NAME: this.loyaltyTable.tableName,
         // Dev + demo: allow users without custom:tenant_id to use tenant "default". Prod: deny.
         ...(isProd ? {} : { DEFAULT_TENANT_ID: 'default' }),
       },
     });
+    this.loyaltyTable.grantReadData(authorizerFn);
     const authorizer = new apigatewayv2authorizers.HttpLambdaAuthorizer('CognitoAuthorizer', authorizerFn, {
       responseTypes: [apigatewayv2authorizers.HttpLambdaResponseType.SIMPLE],
     });
 
     const apiIntegration = new apigatewayv2integrations.HttpLambdaIntegration('ApiIntegration', apiHandler);
+
+    // Public auth routes — no JWT (e.g. validate-key for salon self-service connection)
+    this.httpApi.addRoutes({
+      path: '/api/v1/auth/{proxy+}',
+      methods: [
+        apigatewayv2.HttpMethod.POST,
+      ],
+      integration: apiIntegration,
+      authorizer: new apigatewayv2.HttpNoneAuthorizer(),
+    });
 
     // Webhooks — no JWT; backend verifies HMAC signature
     this.httpApi.addRoutes({
@@ -386,61 +409,17 @@ export class LoyaltyPlatformStack extends cdk.Stack {
     });
 
     // ── AWS Budgets ────────────────────────────────────────────────────────────
-    // Monthly cost cap per environment.
-    // NOTE: Tag-based filtering requires "CostCenter" to be enabled as a cost
-    // allocation tag in the AWS Billing console (Billing → Cost allocation tags).
-    // Until that is done the budget monitors account-wide spend; after activation
-    // it will scope down to this environment only.
-    new budgets.CfnBudget(this, 'MonthlyBudget', {
-      budget: {
-        budgetName: `loyalty-${envName}-monthly`,
-        budgetType: 'COST',
-        timeUnit: 'MONTHLY',
-        budgetLimit: {
-          amount: BUDGET_LIMITS[envName],
-          unit: 'USD',
-        },
-        costFilters: {
-          // Filter by the CostCenter tag so each env has its own budget.
-          // Requires cost allocation tags to be activated in Billing console.
-          TagKeyValue: [`user:CostCenter$loyalty-${envName}`],
-        },
-      },
-      notificationsWithSubscribers: [
-        {
-          notification: {
-            notificationType: 'ACTUAL',
-            comparisonOperator: 'GREATER_THAN',
-            threshold: 80, // alert at 80% of budget
-            thresholdType: 'PERCENTAGE',
-          },
-          subscribers: [
-            { subscriptionType: 'EMAIL', address: budgetAlertEmail },
-          ],
-        },
-        {
-          notification: {
-            notificationType: 'ACTUAL',
-            comparisonOperator: 'GREATER_THAN',
-            threshold: 100, // alert when budget is exceeded
-            thresholdType: 'PERCENTAGE',
-          },
-          subscribers: [
-            { subscriptionType: 'EMAIL', address: budgetAlertEmail },
-          ],
-        },
-        {
-          notification: {
-            notificationType: 'FORECASTED',
-            comparisonOperator: 'GREATER_THAN',
-            threshold: 100, // alert when forecast predicts overage
-            thresholdType: 'PERCENTAGE',
-          },
-          subscribers: [
-            { subscriptionType: 'EMAIL', address: budgetAlertEmail },
-          ],
-        },
-      ],
-    });
+    // Disabled: AWS::Budgets::Budget is not supported by CloudFormation in eu-north-1.
+    // Re-enable by deploying from us-east-1 or once the region adds support.
+    // new budgets.CfnBudget(this, 'MonthlyBudget', {
+    //   budget: {
+    //     budgetName: `loyalty-${envName}-monthly`,
+    //     budgetType: 'COST',
+    //     timeUnit: 'MONTHLY',
+    //     budgetLimit: { amount: BUDGET_LIMITS[envName], unit: 'USD' },
+    //     costFilters: { TagKeyValue: [`user:CostCenter$loyalty-${envName}`] },
+    //   },
+    //   notificationsWithSubscribers: [...],
+    // });
   }
 }

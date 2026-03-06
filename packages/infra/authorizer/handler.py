@@ -1,20 +1,34 @@
 """
 API Gateway HTTP API (v2) Lambda authorizer.
-Validates Cognito JWT and returns tenantId from custom:tenant_id claim for backend X-Tenant-Id.
+Validates Cognito JWT or API key and returns tenantId for backend X-Tenant-Id.
 """
+import hashlib
 import os
 import json
+import time
 import urllib.request
 import jwt
 from jwt import PyJWKClient
+
+import boto3
 
 USER_POOL_ID = os.environ.get("USER_POOL_ID", "")
 CLIENT_ID = os.environ.get("CLIENT_ID", "")
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 # Only set in dev: allow users without custom:tenant_id to use this tenant. Prod: unset → deny if missing.
 DEFAULT_TENANT_ID = os.environ.get("DEFAULT_TENANT_ID")
+TABLE_NAME = os.environ.get("TABLE_NAME", "")
 
 JWKS_URL = f"https://cognito-idp.{REGION}.amazonaws.com/{USER_POOL_ID}/.well-known/jwks.json"
+
+_ddb_client = None
+
+
+def _get_ddb_client():
+    global _ddb_client
+    if _ddb_client is None:
+        _ddb_client = boto3.client("dynamodb", region_name=REGION)
+    return _ddb_client
 
 
 def get_token(event: dict) -> str | None:
@@ -26,12 +40,91 @@ def get_token(event: dict) -> str | None:
     return None
 
 
+def get_api_key(event: dict) -> str | None:
+    """Extract API key from X-API-Key header."""
+    headers = event.get("headers") or {}
+    return headers.get("x-api-key") or headers.get("X-API-Key") or None
+
+
+def validate_api_key(api_key: str) -> dict | None:
+    """Hash key, look up in DynamoDB, return tenant context or None."""
+    if not TABLE_NAME:
+        return None
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    try:
+        result = _get_ddb_client().get_item(
+            TableName=TABLE_NAME,
+            Key={
+                "pk": {"S": f"API_KEY#{key_hash}"},
+                "sk": {"S": "API_KEY"},
+            },
+            ProjectionExpression="tenantId, programId, isActive, lastUsedAt",
+        )
+    except Exception:
+        return None
+    item = result.get("Item")
+    if not item:
+        return None
+    is_active = item.get("isActive", {}).get("BOOL", False)
+    if not is_active:
+        return None
+    tenant_id = item.get("tenantId", {}).get("S", "")
+    if not tenant_id:
+        return None
+    program_id = item.get("programId", {}).get("S", "")
+
+    # Fire-and-forget: update lastUsedAt only if absent or older than 1 hour
+    last_used = item.get("lastUsedAt", {}).get("N")
+    now = int(time.time())
+    if last_used is None or now - int(last_used) > 3600:
+        try:
+            _get_ddb_client().update_item(
+                TableName=TABLE_NAME,
+                Key={
+                    "pk": {"S": f"API_KEY#{key_hash}"},
+                    "sk": {"S": "API_KEY"},
+                },
+                UpdateExpression="SET lastUsedAt = :now",
+                ExpressionAttributeValues={":now": {"N": str(now)}},
+            )
+        except Exception:
+            pass  # Non-critical — do not fail auth on tracking error
+
+    return {
+        "tenantId": tenant_id,
+        "programId": program_id,
+        "keyHash": key_hash[:16],
+    }
+
+
 def handler(event: dict, context: object) -> dict:
     """Lambda authorizer payload format 2.0. Return isAuthorized and context.tenantId."""
     token = get_token(event)
-    if not token:
+    api_key = get_api_key(event)
+
+    if token:
+        return _validate_jwt(token)
+    elif api_key:
+        result = validate_api_key(api_key)
+        if not result:
+            return {"isAuthorized": False}
+        return {
+            "isAuthorized": True,
+            "context": {
+                "tenantId": result["tenantId"],
+                "sub": f"apikey:{result['keyHash']}",
+                "cognito_username": "",
+                "cognito_groups": "",
+                "auth_type": "api_key",
+                "api_key_id": result["keyHash"],
+            },
+        }
+    else:
         return {"isAuthorized": False}
 
+
+def _validate_jwt(token: str) -> dict:
+    """Existing JWT validation path."""
     if not USER_POOL_ID or not CLIENT_ID:
         return {"isAuthorized": False}
 

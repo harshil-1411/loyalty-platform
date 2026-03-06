@@ -115,6 +115,46 @@ def test_earn_with_idempotency_key(client: TestClient):
     assert r.json()["transactionId"] == "idem-abc-123"
 
 
+@mock_aws
+def test_earn_idempotency_duplicate_returns_same_response(client: TestClient):
+    """Retry with same idempotencyKey returns 200 without re-incrementing balance."""
+    _create_table()
+    payload = {"memberId": MEMBER, "points": 50, "idempotencyKey": "idem-dup-001"}
+    r1 = client.post(f"/api/v1/programs/{PROGRAM}/earn", json=payload, headers=HEADERS)
+    assert r1.status_code == 200
+    assert r1.json()["balance"] == 50
+
+    # Retry with same key — balance must NOT increase
+    r2 = client.post(f"/api/v1/programs/{PROGRAM}/earn", json=payload, headers=HEADERS)
+    assert r2.status_code == 200
+    assert r2.json()["balance"] == 50
+    assert r2.json()["transactionId"] == "idem-dup-001"
+
+    # Verify balance via GET
+    r3 = client.get(f"/api/v1/programs/{PROGRAM}/balance/{MEMBER}", headers=HEADERS)
+    assert r3.json()["balance"] == 50
+
+
+@mock_aws
+def test_earn_idempotency_different_payload_returns_409(client: TestClient):
+    """Same idempotencyKey with different points returns 409 Conflict."""
+    _create_table()
+    r1 = client.post(
+        f"/api/v1/programs/{PROGRAM}/earn",
+        json={"memberId": MEMBER, "points": 50, "idempotencyKey": "idem-conflict-001"},
+        headers=HEADERS,
+    )
+    assert r1.status_code == 200
+
+    r2 = client.post(
+        f"/api/v1/programs/{PROGRAM}/earn",
+        json={"memberId": MEMBER, "points": 99, "idempotencyKey": "idem-conflict-001"},
+        headers=HEADERS,
+    )
+    assert r2.status_code == 409
+    assert r2.json()["error"]["code"] == "CONFLICT"
+
+
 # ---------------------------------------------------------------------------
 # Balance
 # ---------------------------------------------------------------------------
